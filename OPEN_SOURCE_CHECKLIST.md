@@ -1,23 +1,23 @@
 # Open-source release checklist
 
-Do not make the existing private repository public until every blocking item below is complete.
+Do not make this repository public until every remaining blocking item below is complete. The private operational repository stays private.
 
 ## Blocking review
 
 - [ ] Choose and approve the license and copyright holder.
 - [ ] Review the complete release diff for product, security, and documentation quality.
 - [ ] Confirm that all examples, screenshots, tests, and fixtures use synthetic data.
-- [ ] Confirm that every optional integration safely skips scheduled work when unconfigured.
-- [ ] Verify a fresh local setup using only `.env.example` and the documented steps.
+- [x] Confirm that every optional integration safely skips scheduled work when unconfigured.
+- [x] Verify a fresh install, tests, typecheck, and production build without private environment files.
 
 ## Clean publication history
 
-The private Git history contains internal documentation and a private deployment origin that were removed from the current source. Do not expose that history.
+This repository was created from an approved source snapshot without copying the private operational history.
 
-- [ ] Publish from a new clean root commit or a separate public repository containing only the approved snapshot.
-- [ ] Scan the clean publication history with Gitleaks.
-- [ ] Search the clean snapshot for private deployment origins, personal emails, channel IDs, customer data, and credentials.
-- [ ] Verify that ignored local databases, exports, and the local `research/` directory are absent.
+- [x] Start from a new clean root commit containing only the release snapshot.
+- [x] Scan the clean publication history with Gitleaks.
+- [x] Search the clean snapshot for private deployment origins, personal emails, channel IDs, customer data, and credentials.
+- [x] Verify that local databases, exports, and research artifacts are absent.
 
 ## GitHub and launch
 

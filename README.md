@@ -4,6 +4,10 @@ An open-source workspace for searching and summarizing customer conversations fr
 
 This repository contains application code only. It does not include a hosted deployment, customer data, or credentials.
 
+## Project origin
+
+This open-source edition is maintained separately from the private operational deployment. It starts from a clean Git history so internal data, deployment details, and operational history never become part of the public repository.
+
 ## Architecture
 
 ```text
