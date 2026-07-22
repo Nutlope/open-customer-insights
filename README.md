@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/customer-insights-hero.png" alt="Customer Insights dashboard with web chat, connected company data, and MCP access" />
+  <img src="./public/customer-insights-hero.png" alt="Calls, Salesforce, Slack, Zoom, and support tickets flowing through a customer data graph into MCP, web chat, and analytics" />
 </p>
 
 <h1 align="center">Customer Insights</h1>
