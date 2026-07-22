@@ -4,9 +4,9 @@ An open-source workspace for searching and summarizing customer conversations fr
 
 This repository contains application code only. It does not include a hosted deployment, customer data, or credentials.
 
-## Project origin
+## Why we're open-sourcing this
 
-This open-source edition is maintained separately from the private operational deployment. It starts from a clean Git history so internal data, deployment details, and operational history never become part of the public repository.
+Customer Insights is a practical example of how to combine MCP with a web chat experience over a company's private data. Use it as a starting point for building secure, beautiful, and extensible internal dashboards that connect conversations, support data, and other business systems.
 
 ## Architecture
 
