@@ -1,8 +1,20 @@
-# Customer Insights
+<p align="center">
+  <img src="./public/customer-insights-hero.png" alt="Customer Insights dashboard with web chat, connected company data, and MCP access" />
+</p>
 
-An open-source workspace for searching and summarizing customer conversations from calls, support tickets, and Slack. It includes a Clerk-authenticated web app, scheduled Convex ingestion jobs, semantic search powered by Together AI, and an MCP endpoint for compatible agents.
+<h1 align="center">Customer Insights</h1>
 
-This repository contains application code only. It does not include a hosted deployment, customer data, or credentials.
+<p align="center">
+  Build beautiful, extensible dashboards and MCP tools over your company's private data.
+</p>
+
+<p align="center">
+  Calls &nbsp;·&nbsp; Support &nbsp;·&nbsp; Slack &nbsp;·&nbsp; Semantic search &nbsp;·&nbsp; Reports
+</p>
+
+Customer Insights is an open-source workspace for searching and summarizing customer conversations. It includes a Clerk-authenticated web app, scheduled Convex ingestion jobs, semantic search powered by Together AI, and an MCP endpoint for compatible agents.
+
+> This repository contains application code only. It does not include a hosted deployment, customer data, or credentials.
 
 ## Why we're open-sourcing this
 

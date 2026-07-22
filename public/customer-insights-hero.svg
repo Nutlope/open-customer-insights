@@ -1,0 +1,204 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="background" x1="164" y1="54" x2="1436" y2="846" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAF8FF"/>
+      <stop offset="0.48" stop-color="#F7F7FA"/>
+      <stop offset="1" stop-color="#FFF8F3"/>
+    </linearGradient>
+    <linearGradient id="assistant" x1="406" y1="322" x2="1055" y2="582" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FCFAFF"/>
+      <stop offset="1" stop-color="#FFFDFC"/>
+    </linearGradient>
+    <filter id="frameShadow" x="34" y="30" width="1532" height="852" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#18181B" flood-opacity="0.10"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#18181B" flood-opacity="0.06"/>
+    </filter>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#18181B" flood-opacity="0.07"/>
+    </filter>
+    <clipPath id="appClip">
+      <rect x="80" y="70" width="1440" height="760" rx="30"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#background)"/>
+  <circle cx="132" cy="140" r="96" fill="#C5A7F5" fill-opacity="0.16"/>
+  <circle cx="1468" cy="748" r="132" fill="#FF4B00" fill-opacity="0.08"/>
+  <circle cx="1452" cy="122" r="72" fill="#ED20B7" fill-opacity="0.08"/>
+
+  <g filter="url(#frameShadow)">
+    <rect x="80" y="70" width="1440" height="760" rx="30" fill="white"/>
+  </g>
+
+  <g clip-path="url(#appClip)">
+    <rect x="80" y="70" width="260" height="760" fill="#FAFAFB"/>
+    <path d="M340 70V830" stroke="#E9E9ED"/>
+    <path d="M1170 70V830" stroke="#E9E9ED"/>
+
+    <!-- Sidebar brand -->
+    <g transform="translate(112 104)">
+      <circle cx="12" cy="12" r="12" fill="#C5A7F5"/>
+      <circle cx="31" cy="12" r="12" fill="#ED20B7"/>
+      <circle cx="21.5" cy="29" r="12" fill="#FF4B00"/>
+      <path d="M21.5 22L27.5 12H31" stroke="#18181B" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M18.5 24L12 12" stroke="#18181B" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <text x="164" y="133" fill="#18181B" font-family="Inter, ui-sans-serif, system-ui" font-size="19" font-weight="700">Customer Insights</text>
+    <text x="112" y="181" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11" font-weight="700" letter-spacing="1.3">WORKSPACE</text>
+
+    <rect x="100" y="198" width="220" height="44" rx="12" fill="#18181B"/>
+    <circle cx="124" cy="220" r="8" stroke="white" stroke-width="1.8"/>
+    <path d="M130 226L136 232" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+    <text x="148" y="225" fill="white" font-family="Inter, ui-sans-serif, system-ui" font-size="14" font-weight="600">Ask anything</text>
+
+    <g fill="#52525B" font-family="Inter, ui-sans-serif, system-ui" font-size="14" font-weight="500">
+      <text x="148" y="278">Companies</text>
+      <text x="148" y="326">Daily insights</text>
+      <text x="148" y="374">Prospects</text>
+      <text x="148" y="422">Competitors</text>
+    </g>
+    <g stroke="#71717A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="116" y="263" width="16" height="14" rx="3"/>
+      <path d="M120 263V258H128V263"/>
+      <path d="M116 310H132V328H116Z"/>
+      <path d="M120 316H128M120 322H126"/>
+      <circle cx="124" cy="365" r="8"/>
+      <path d="M124 359V371M118 365H130"/>
+      <path d="M116 406H132V420H116Z"/>
+      <path d="M120 420V425M128 420V425"/>
+    </g>
+
+    <text x="112" y="488" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11" font-weight="700" letter-spacing="1.3">CONNECTED SOURCES</text>
+    <g font-family="Inter, ui-sans-serif, system-ui" font-size="13" font-weight="500">
+      <circle cx="120" cy="526" r="5" fill="#22C55E"/>
+      <text x="136" y="531" fill="#52525B">Calls</text>
+      <text x="288" y="531" fill="#A1A1AA" text-anchor="end">124</text>
+      <circle cx="120" cy="562" r="5" fill="#22C55E"/>
+      <text x="136" y="567" fill="#52525B">Support</text>
+      <text x="288" y="567" fill="#A1A1AA" text-anchor="end">89</text>
+      <circle cx="120" cy="598" r="5" fill="#22C55E"/>
+      <text x="136" y="603" fill="#52525B">Slack</text>
+      <text x="288" y="603" fill="#A1A1AA" text-anchor="end">Live</text>
+    </g>
+
+    <rect x="100" y="756" width="220" height="50" rx="14" fill="white"/>
+    <rect x="100.5" y="756.5" width="219" height="49" rx="13.5" stroke="#E4E4E7"/>
+    <circle cx="124" cy="781" r="13" fill="#F1EAFE"/>
+    <text x="124" y="785" text-anchor="middle" fill="#6D28D9" font-family="Inter, ui-sans-serif, system-ui" font-size="11" font-weight="700">RG</text>
+    <text x="148" y="777" fill="#27272A" font-family="Inter, ui-sans-serif, system-ui" font-size="12" font-weight="600">Your workspace</text>
+    <text x="148" y="794" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="10">Private &amp; authenticated</text>
+
+    <!-- Chat header -->
+    <text x="382" y="118" fill="#18181B" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700">Ask your company data</text>
+    <text x="382" y="142" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="12">Search calls, tickets, Slack, and reports in one conversation.</text>
+    <rect x="1020" y="101" width="112" height="32" rx="9" fill="#FAFAFA"/>
+    <rect x="1020.5" y="101.5" width="111" height="31" rx="8.5" stroke="#E4E4E7"/>
+    <circle cx="1039" cy="117" r="4" fill="#22C55E"/>
+    <text x="1051" y="121" fill="#52525B" font-family="Inter, ui-sans-serif, system-ui" font-size="11" font-weight="600">MCP ready</text>
+    <path d="M360 166H1150" stroke="#EEEEF0"/>
+
+    <!-- Conversation -->
+    <rect x="720" y="201" width="412" height="72" rx="18" fill="#18181B"/>
+    <text x="746" y="231" fill="white" font-family="Inter, ui-sans-serif, system-ui" font-size="14" font-weight="600">What changed for Acme this week?</text>
+    <text x="746" y="253" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="12">Focus on product risk and buying signals.</text>
+
+    <g filter="url(#cardShadow)">
+      <rect x="382" y="306" width="750" height="276" rx="20" fill="url(#assistant)"/>
+      <rect x="382.5" y="306.5" width="749" height="275" rx="19.5" stroke="#E7E3EC"/>
+    </g>
+    <circle cx="412" cy="339" r="14" fill="#F1EAFE"/>
+    <path d="M406 339H418M412 333V345" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
+    <text x="440" y="344" fill="#27272A" font-family="Inter, ui-sans-serif, system-ui" font-size="14" font-weight="700">Customer Insights</text>
+    <text x="406" y="383" fill="#3F3F46" font-family="Inter, ui-sans-serif, system-ui" font-size="14">Acme showed stronger buying intent, but two product risks need attention:</text>
+
+    <rect x="406" y="407" width="214" height="104" rx="14" fill="white"/>
+    <rect x="406.5" y="407.5" width="213" height="103" rx="13.5" stroke="#E8E8EC"/>
+    <circle cx="430" cy="431" r="8" fill="#FEE2E2"/>
+    <path d="M430 426V432" stroke="#DC2626" stroke-width="1.7" stroke-linecap="round"/>
+    <circle cx="430" cy="436" r="1" fill="#DC2626"/>
+    <text x="448" y="435" fill="#3F3F46" font-family="Inter, ui-sans-serif, system-ui" font-size="12" font-weight="700">Product risk</text>
+    <text x="426" y="464" fill="#71717A" font-family="Inter, ui-sans-serif, system-ui" font-size="12">Latency and rate limits</text>
+    <text x="426" y="484" fill="#71717A" font-family="Inter, ui-sans-serif, system-ui" font-size="12">surfaced in two sources.</text>
+
+    <rect x="632" y="407" width="214" height="104" rx="14" fill="white"/>
+    <rect x="632.5" y="407.5" width="213" height="103" rx="13.5" stroke="#E8E8EC"/>
+    <circle cx="656" cy="431" r="8" fill="#DCFCE7"/>
+    <path d="M652 431L655 434L660 428" stroke="#16A34A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="674" y="435" fill="#3F3F46" font-family="Inter, ui-sans-serif, system-ui" font-size="12" font-weight="700">Buying signal</text>
+    <text x="652" y="464" fill="#71717A" font-family="Inter, ui-sans-serif, system-ui" font-size="12">A pilot was discussed with</text>
+    <text x="652" y="484" fill="#71717A" font-family="Inter, ui-sans-serif, system-ui" font-size="12">a decision expected soon.</text>
+
+    <rect x="858" y="407" width="250" height="104" rx="14" fill="white"/>
+    <rect x="858.5" y="407.5" width="249" height="103" rx="13.5" stroke="#E8E8EC"/>
+    <text x="878" y="435" fill="#3F3F46" font-family="Inter, ui-sans-serif, system-ui" font-size="12" font-weight="700">Evidence reviewed</text>
+    <text x="878" y="466" fill="#18181B" font-family="Inter, ui-sans-serif, system-ui" font-size="22" font-weight="750">5</text>
+    <text x="900" y="466" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11">sources</text>
+    <g font-family="Inter, ui-sans-serif, system-ui" font-size="10" font-weight="600">
+      <rect x="878" y="478" width="48" height="20" rx="6" fill="#F4F4F5"/>
+      <text x="902" y="492" text-anchor="middle" fill="#71717A">Calls</text>
+      <rect x="932" y="478" width="52" height="20" rx="6" fill="#F4F4F5"/>
+      <text x="958" y="492" text-anchor="middle" fill="#71717A">Tickets</text>
+      <rect x="990" y="478" width="46" height="20" rx="6" fill="#F4F4F5"/>
+      <text x="1013" y="492" text-anchor="middle" fill="#71717A">Slack</text>
+    </g>
+
+    <text x="406" y="548" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11">Sources: QBR call · API support ticket · #customer-mentions</text>
+
+    <!-- Composer -->
+    <rect x="382" y="734" width="750" height="64" rx="18" fill="white"/>
+    <rect x="382.5" y="734.5" width="749" height="63" rx="17.5" stroke="#DCDCE1"/>
+    <text x="408" y="772" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="13">Ask a follow-up about your customers...</text>
+    <circle cx="1098" cy="766" r="18" fill="#18181B"/>
+    <path d="M1091 767L1098 760L1105 767M1098 761V773" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Company context panel -->
+    <rect x="1170" y="70" width="350" height="760" fill="#FCFCFD"/>
+    <text x="1202" y="118" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11" font-weight="700" letter-spacing="1.2">COMPANY CONTEXT</text>
+    <circle cx="1224" cy="164" r="22" fill="#18181B"/>
+    <text x="1224" y="171" text-anchor="middle" fill="white" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="700">A</text>
+    <text x="1258" y="162" fill="#27272A" font-family="Inter, ui-sans-serif, system-ui" font-size="16" font-weight="700">Acme</text>
+    <text x="1258" y="183" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11">Customer · acme.example</text>
+
+    <rect x="1202" y="218" width="136" height="76" rx="14" fill="white"/>
+    <rect x="1202.5" y="218.5" width="135" height="75" rx="13.5" stroke="#E8E8EC"/>
+    <text x="1220" y="245" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="10" font-weight="700">HEALTH</text>
+    <text x="1220" y="274" fill="#18181B" font-family="Inter, ui-sans-serif, system-ui" font-size="22" font-weight="750">62</text>
+    <rect x="1255" y="260" width="60" height="18" rx="6" fill="#FEF3C7"/>
+    <text x="1285" y="273" text-anchor="middle" fill="#A16207" font-family="Inter, ui-sans-serif, system-ui" font-size="9" font-weight="700">WATCH</text>
+
+    <rect x="1350" y="218" width="138" height="76" rx="14" fill="white"/>
+    <rect x="1350.5" y="218.5" width="137" height="75" rx="13.5" stroke="#E8E8EC"/>
+    <text x="1368" y="245" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="10" font-weight="700">ACTIVITY</text>
+    <text x="1368" y="274" fill="#18181B" font-family="Inter, ui-sans-serif, system-ui" font-size="22" font-weight="750">8</text>
+    <text x="1385" y="273" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="10">this week</text>
+
+    <text x="1202" y="342" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="11" font-weight="700" letter-spacing="1.2">RECENT ACTIVITY</text>
+    <path d="M1214 375V653" stroke="#E4E4E7" stroke-width="2"/>
+
+    <g font-family="Inter, ui-sans-serif, system-ui">
+      <circle cx="1214" cy="390" r="7" fill="#C5A7F5" stroke="white" stroke-width="3"/>
+      <text x="1236" y="387" fill="#27272A" font-size="12" font-weight="700">Roadmap sync</text>
+      <text x="1236" y="407" fill="#A1A1AA" font-size="10">Call · 28 min · Today</text>
+
+      <circle cx="1214" cy="460" r="7" fill="#FF4B00" stroke="white" stroke-width="3"/>
+      <text x="1236" y="457" fill="#27272A" font-size="12" font-weight="700">Rate limit question</text>
+      <text x="1236" y="477" fill="#A1A1AA" font-size="10">Support · High priority</text>
+
+      <circle cx="1214" cy="530" r="7" fill="#ED20B7" stroke="white" stroke-width="3"/>
+      <text x="1236" y="527" fill="#27272A" font-size="12" font-weight="700">Competitor mentioned</text>
+      <text x="1236" y="547" fill="#A1A1AA" font-size="10">Slack · #customer-mentions</text>
+
+      <circle cx="1214" cy="600" r="7" fill="#18181B" stroke="white" stroke-width="3"/>
+      <text x="1236" y="597" fill="#27272A" font-size="12" font-weight="700">Pilot note added</text>
+      <text x="1236" y="617" fill="#A1A1AA" font-size="10">Manual note · Yesterday</text>
+    </g>
+
+    <rect x="1202" y="690" width="286" height="84" rx="16" fill="#18181B"/>
+    <text x="1222" y="720" fill="white" font-family="Inter, ui-sans-serif, system-ui" font-size="12" font-weight="700">Connect from your coding agent</text>
+    <text x="1222" y="743" fill="#A1A1AA" font-family="Inter, ui-sans-serif, system-ui" font-size="10">Search the same private context through MCP.</text>
+    <rect x="1222" y="752" width="100" height="6" rx="3" fill="#3F3F46"/>
+    <rect x="1330" y="752" width="55" height="6" rx="3" fill="#3F3F46"/>
+  </g>
+
+  <rect x="80.5" y="70.5" width="1439" height="759" rx="29.5" stroke="#18181B" stroke-opacity="0.08"/>
+</svg>
