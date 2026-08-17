@@ -30,7 +30,7 @@ const togetherai = createOpenAICompatible({
 
 const REPORT_MODELS = [
   "moonshotai/Kimi-K2.6",
-  "deepseek-ai/DeepSeek-V4-Pro",
+  "deepseek-ai/DeepSeek-V4-Pro-0813",
   "meta-llama/Llama-3.3-70B-Instruct-Turbo",
 ] as const;
 
