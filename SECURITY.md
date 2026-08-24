@@ -9,7 +9,6 @@ Please report vulnerabilities privately through GitHub Security Advisories for t
 ## Deployment expectations
 
 - Keep Clerk authentication enabled for the application and MCP endpoint.
-- Set `ADMIN_EMAILS` explicitly. There are no implicit administrators.
 - Use a unique, high-entropy `INTERNAL_CONVEX_SECRET` and never expose it to the browser.
 - Grant Gong, Pylon, Slack, Clerk, Convex, Together AI, and Exa credentials the minimum scopes needed.
 - Never commit `.env` files, exports, transcripts, tickets, database snapshots, or generated customer reports.

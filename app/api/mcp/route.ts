@@ -9,8 +9,6 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { searchTool } from "@/lib/tools/search";
 import { getTool } from "@/lib/tools/get";
-import { listDailyInsightsTool } from "@/lib/tools/daily-insights";
-import { listProspectsTool } from "@/lib/tools/prospects";
 import { listCompaniesTool } from "@/lib/tools/companies";
 import {
   getSlackChannelHistoryTool,
@@ -57,36 +55,6 @@ const handler = createMcpHandler(
     }, async ({ id }) => {
       const clerkId = clerkIdStore.getStore() ?? "";
       const text = await getTool({ convex, clerkId, serverSecret, id });
-      return { content: [{ type: "text", text }] };
-    });
-
-    server.registerTool(toolCatalog.listDailyInsights.name, {
-      description: toolCatalog.listDailyInsights.description,
-      inputSchema: toolCatalog.listDailyInsights.inputSchema.shape,
-    }, async ({ from, to, limit, status, company }) => {
-      const text = await listDailyInsightsTool({
-        convex,
-        serverSecret,
-        from,
-        to,
-        limit,
-        status,
-        company,
-      });
-      return { content: [{ type: "text", text }] };
-    });
-
-    server.registerTool(toolCatalog.listProspects.name, {
-      description: toolCatalog.listProspects.description,
-      inputSchema: toolCatalog.listProspects.inputSchema.shape,
-    }, async ({ segmentSlug, company, limit }) => {
-      const text = await listProspectsTool({
-        convex,
-        serverSecret,
-        segmentSlug,
-        company,
-        limit,
-      });
       return { content: [{ type: "text", text }] };
     });
 

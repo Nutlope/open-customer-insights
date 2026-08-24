@@ -221,68 +221,6 @@ export default defineSchema({
   })
     .index("by_key", ["key"]),
 
-  reports: defineTable({
-    type: v.literal("daily"),
-    periodStart: v.string(),   // ISO date
-    periodEnd: v.string(),     // ISO date
-    callCount: v.number(),
-    ticketCount: v.number(),
-    summary: v.string(),       // LLM-generated markdown
-    sentiment: v.object({
-      positive: v.float64(),
-      negative: v.float64(),
-      neutral: v.float64(),
-    }),
-    highlights: v.array(
-      v.object({
-        title: v.string(),
-        description: v.string(),
-        company: v.optional(v.string()),
-        companyDomain: v.optional(v.string()),
-        sourceRefs: v.optional(v.array(v.object({
-          source: v.union(v.literal("call"), v.literal("support")),
-          id: v.string(),
-          title: v.optional(v.string()),
-        }))),
-        sentiment: v.union(v.literal("positive"), v.literal("negative"), v.literal("neutral")),
-      })
-    ),
-    generatedAt: v.number(),
-  })
-    .index("by_type_period", ["type", "periodStart"])
-    .index("by_generated", ["generatedAt"]),
-
-  dailyInsights: defineTable({
-    reportId: v.id("reports"),
-    highlightKey: v.string(),
-    periodStart: v.string(),
-    periodEnd: v.string(),
-    title: v.string(),
-    description: v.string(),
-    company: v.optional(v.string()),
-    companyDomain: v.optional(v.string()),
-    sourceRefs: v.optional(v.array(v.object({
-      source: v.union(v.literal("call"), v.literal("support")),
-      id: v.string(),
-      title: v.optional(v.string()),
-    }))),
-    sentiment: v.union(v.literal("positive"), v.literal("negative"), v.literal("neutral")),
-    status: v.union(v.literal("review"), v.literal("posted"), v.literal("dismissed")),
-    generatedAt: v.number(),
-    updatedAt: v.number(),
-    updatedByEmail: v.optional(v.string()),
-    postedAt: v.optional(v.number()),
-    dismissedAt: v.optional(v.number()),
-    dismissReason: v.optional(v.string()),
-    slackChannel: v.optional(v.string()),
-    slackMessageTs: v.optional(v.string()),
-  })
-    .index("by_report", ["reportId"])
-    .index("by_period", ["periodStart"])
-    .index("by_status", ["status"])
-    .index("by_generated", ["generatedAt"])
-    .index("by_report_highlight", ["reportId", "highlightKey"]),
-
   companyProfiles: defineTable({
     domain: v.string(),
     name: v.string(),
@@ -463,7 +401,7 @@ export default defineSchema({
     // if no decision has been made yet (e.g. Prosus comparing Together vs Nebius).
     competitorsConsidered: v.optional(v.array(v.string())),
     // Whether the outcome fields above were last set by the AI classifier or
-    // pinned manually by an admin. Once "manual", refreshes preserve them.
+    // pinned manually by a maintainer. Once "manual", refreshes preserve them.
     outcomeOrigin: v.optional(v.union(v.literal("ai"), v.literal("manual"))),
     outcomeSetByEmail: v.optional(v.string()),
     outcomeSetAt: v.optional(v.number()),
@@ -565,7 +503,7 @@ export default defineSchema({
   // didn't match an existing companyProfiles record and had no usable domain
   // in the Slack message itself, so a domain couldn't be confidently
   // resolved automatically. suggestedDomain is an LLM guess shown as a hint
-  // for the reviewer in app/admin/pending-revenue-deals — never applied
+  // for manual review through internal maintenance functions — never applied
   // without manual approval (see convex/salesWins.ts).
   pendingRevenueDeals: defineTable({
     channelId: v.string(),

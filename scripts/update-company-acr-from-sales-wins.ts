@@ -7,8 +7,8 @@
  * Companies whose currentAcrConfidence is "flagged_review" (the amount likely
  * represents a multi-year contract value, not an annual run-rate), or whose
  * currentAcr is under $100 (likely a placeholder/stale/test deal), are not
- * applied directly - instead an acrSuggestions row is created for admin
- * review at /admin/acr-suggestions.
+ * applied directly - instead an acrSuggestions row is created for manual
+ * review through the internal Convex maintenance functions.
  *
  * Usage:
  *   bun run scripts/update-company-acr-from-sales-wins.ts --dry-run
@@ -77,7 +77,7 @@ async function main() {
   }
 
   console.log(`${records.length} companies with a usable currentAcr to apply directly.`);
-  console.log(`${suggestions.length} companies need admin review (flagged_review / near_zero).`);
+  console.log(`${suggestions.length} companies need manual review (flagged_review / near_zero).`);
 
   let totalUpdated = 0;
   const notFound = new Set<string>();
@@ -107,7 +107,7 @@ async function main() {
 
   if (dryRun) {
     for (const s of suggestions) console.log(`  [suggest] ${s.domain}: ${s.reason} -> $${s.proposedAcr}`);
-    console.log(`[dry-run] Would propose ${suggestions.length} ACR suggestions for admin review.`);
+    console.log(`[dry-run] Would propose ${suggestions.length} ACR suggestions for manual review.`);
     return;
   }
 
@@ -123,7 +123,7 @@ async function main() {
     totalProposed += parsed.inserted;
   }
 
-  console.log(`Proposed ${totalProposed} ACR suggestions for admin review.`);
+  console.log(`Proposed ${totalProposed} ACR suggestions for manual review.`);
 }
 
 main().catch((err) => {

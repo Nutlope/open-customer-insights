@@ -16,7 +16,6 @@ import type * as companies from "../companies.js";
 import type * as companyTimeline from "../companyTimeline.js";
 import type * as competitors from "../competitors.js";
 import type * as crons from "../crons.js";
-import type * as dailyInsights from "../dailyInsights.js";
 import type * as embed from "../embed.js";
 import type * as enrichment from "../enrichment.js";
 import type * as ingest from "../ingest.js";
@@ -24,14 +23,14 @@ import type * as prospects from "../prospects.js";
 import type * as pylonMutations from "../pylonMutations.js";
 import type * as queries from "../queries.js";
 import type * as rateLimits from "../rateLimits.js";
-import type * as reports from "../reports.js";
-import type * as reportsQueries from "../reportsQueries.js";
 import type * as revenue from "../revenue.js";
 import type * as salesWins from "../salesWins.js";
 import type * as savedQueries from "../savedQueries.js";
 import type * as search from "../search.js";
+import type * as seed from "../seed.js";
 import type * as slack from "../slack.js";
 import type * as slackMentions from "../slackMentions.js";
+import type * as sourceDetails from "../sourceDetails.js";
 import type * as users from "../users.js";
 
 import type {
@@ -49,7 +48,6 @@ declare const fullApi: ApiFromModules<{
   companyTimeline: typeof companyTimeline;
   competitors: typeof competitors;
   crons: typeof crons;
-  dailyInsights: typeof dailyInsights;
   embed: typeof embed;
   enrichment: typeof enrichment;
   ingest: typeof ingest;
@@ -57,14 +55,14 @@ declare const fullApi: ApiFromModules<{
   pylonMutations: typeof pylonMutations;
   queries: typeof queries;
   rateLimits: typeof rateLimits;
-  reports: typeof reports;
-  reportsQueries: typeof reportsQueries;
   revenue: typeof revenue;
   salesWins: typeof salesWins;
   savedQueries: typeof savedQueries;
   search: typeof search;
+  seed: typeof seed;
   slack: typeof slack;
   slackMentions: typeof slackMentions;
+  sourceDetails: typeof sourceDetails;
   users: typeof users;
 }>;
 

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
   getExistingCurrentUserId,
@@ -7,7 +7,6 @@ import {
   titleFromQuery,
 } from "../lib/convex/savedQueries";
 import { summarizeSavedQueryUsage } from "../lib/convex/savedQueryUsage";
-import { requireAdmin } from "../lib/convex/auth";
 
 export const list = query({
   args: {},
@@ -83,15 +82,13 @@ export const markRun = mutation({
   },
 });
 
-export const getAdminSummary = query({
+export const getUsageSummaryInternal = internalQuery({
   args: {
     userId: v.optional(v.string()),
     weekFilter: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin({ ctx });
-
     const [users, savedQueries, runs] = await Promise.all([
       ctx.db.query("users").collect(),
       ctx.db.query("savedQueries").collect(),

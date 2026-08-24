@@ -1,24 +1,22 @@
-<p align="center">
-  <img src="./public/customer-insights-hero.png" alt="Calls, Salesforce, Slack, Zoom, and support tickets flowing through a customer data graph into MCP, web chat, and analytics" />
-</p>
+![Customer Insights — Every customer signal, one clear answer](./public/cover/og-cover.png)
 
-<h1 align="center">Customer Insights</h1>
+# Customer Insights
 
-<p align="center">
-  Build beautiful, extensible dashboards and MCP tools over your company's private data.
-</p>
+Search calls, support tickets, Slack conversations, and company context from one private intelligence layer.
 
-<p align="center">
-  Calls &nbsp;·&nbsp; Support &nbsp;·&nbsp; Slack &nbsp;·&nbsp; Semantic search &nbsp;·&nbsp; Reports
-</p>
+Customer Insights is an open-source, Clerk-authenticated workspace with a web chat, company and competitor views, semantic search powered by Together AI, scheduled Convex ingestion, and an MCP endpoint for compatible agents.
 
-Customer Insights is an open-source workspace for searching and summarizing customer conversations. It includes a Clerk-authenticated web app, scheduled Convex ingestion jobs, semantic search powered by Together AI, and an MCP endpoint for compatible agents.
+> This repository contains application code and synthetic demo data only. It does not include a hosted deployment, customer data, or credentials.
 
-> This repository contains application code only. It does not include a hosted deployment, customer data, or credentials.
+## What you get
 
-## Why we're open-sourcing this
-
-Customer Insights is a practical example of how to combine MCP with a web chat experience over a company's private data. Use it as a starting point for building secure, beautiful, and extensible internal dashboards that connect conversations, support data, and other business systems.
+- Grounded chat across call transcripts, support tickets, and Slack
+- Semantic and keyword search with source inspection
+- Company timelines and customer-status views
+- Competitor mention tracking
+- An authenticated MCP server for coding agents and assistants
+- Optional Gong, Pylon, Slack, and company-enrichment integrations
+- A deterministic local seed dataset using reserved `.example` domains
 
 ## Architecture
 
@@ -27,73 +25,92 @@ Gong / Pylon / Slack
         |
         | optional Convex ingestion jobs
         v
- conversations and text chunks
+ conversations + text chunks + company context
         |
         | Together AI embeddings
         v
- Convex vector search
+ Convex hybrid search
         |
-        +--> authenticated web app
+        +--> authenticated web chat
+        +--> company and competitor views
         +--> authenticated MCP endpoint
-        +--> generated reports
 ```
 
-Each integration is optional. Scheduled jobs without the corresponding credentials safely skip their work, so you can start with only the data sources you use.
+Each external integration is optional. Jobs without matching credentials skip safely, so you can begin with synthetic data and add only the sources you use.
 
-## Prerequisites
+## Run locally
+
+### Prerequisites
 
 - [Bun](https://bun.sh/)
 - A [Convex](https://www.convex.dev/) project
 - A [Clerk](https://clerk.com/) application
-- A [Together AI](https://www.together.ai/) API key
-- Credentials for any optional data sources you enable
+- A [Together AI](https://www.together.ai/) API key for chat and embeddings
 
-## Local setup
+### 1. Install and configure
 
-1. Install dependencies:
+```bash
+bun install
+cp .env.example .env.local
+```
 
-   ```bash
-   bun install
-   ```
+In Clerk, create a JWT template named `convex`. Add the Clerk keys, Together AI key, and a random `INTERNAL_CONVEX_SECRET` to `.env.local`.
 
-2. Copy the example environment file:
+### 2. Start Convex
 
-   ```bash
-   cp .env.example .env.local
-   ```
+In the first terminal:
 
-3. Start Convex and follow its setup prompts:
+```bash
+bun run convex
+```
 
-   ```bash
-   bun run convex
-   ```
+Follow the Convex setup prompts on the first run. The command keeps the local backend running and updates generated types as Convex files change.
 
-4. In Clerk, create a JWT template named `convex`, then fill in the Clerk and Convex values in `.env.local`.
+For a one-shot schema/function sync instead:
 
-5. Keep `NEXT_PUBLIC_APP_URL=http://localhost:3030` locally. Set it to your own origin in the hosting platform for a deployed instance.
+```bash
+bun run convex:once
+```
 
-6. Start the Next.js app:
+### 3. Load synthetic demo data
 
-   ```bash
-   bun run dev
-   ```
+With Convex running:
 
-The local app runs at `http://localhost:3030`.
+```bash
+bun run seed
+```
+
+The seed is deterministic and idempotent. It creates five fictional companies plus relevant calls, tickets, searchable chunks, Slack context, timelines, and competitor mentions. It refuses to run over non-demo data unless you explicitly pass `{"force":true}` to the Convex function.
+
+Remove only the synthetic rows with:
+
+```bash
+bun run seed:clear
+```
+
+### 4. Start the web app
+
+In a second terminal:
+
+```bash
+bun run dev
+```
+
+Open [http://localhost:3030](http://localhost:3030).
 
 ## Configuration
 
-Core configuration:
+Core variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | Your app's public origin; used to generate MCP and OAuth URLs |
+| `NEXT_PUBLIC_APP_URL` | Public app origin; keep `http://localhost:3030` locally |
 | `NEXT_PUBLIC_CONVEX_URL` | Convex deployment URL |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk browser key |
 | `CLERK_SECRET_KEY` | Clerk server key |
 | `CLERK_JWT_ISSUER_DOMAIN` | Issuer for the Clerk JWT template named `convex` |
-| `INTERNAL_CONVEX_SECRET` | Random secret for trusted server-to-Convex calls |
-| `ADMIN_EMAILS` | Comma-separated administrator email addresses |
-| `TOGETHER_API_KEY` | Together AI key for chat, embeddings, reports, and classifications |
+| `INTERNAL_CONVEX_SECRET` | High-entropy secret for trusted server-to-Convex calls |
+| `TOGETHER_API_KEY` | Together AI key for chat, embeddings, and classification |
 
 Optional integrations:
 
@@ -102,43 +119,44 @@ Optional integrations:
 | `GONG_ACCESS_KEY`, `GONG_ACCESS_KEY_SECRET` | Gong call ingestion |
 | `PYLON_API_KEY` | Pylon support-ticket ingestion |
 | `SLACK_MCP_XOXB_TOKEN` | Slack search and enrichment |
-| `ORGANIZATION_EMAIL_DOMAINS` | Comma-separated domains used to identify internal Slack participants |
+| `ORGANIZATION_EMAIL_DOMAINS` | Domains used to identify internal participants |
 | `EXA_API_KEY` | Company enrichment |
-| `SALES_WINS_SLACK_CHANNEL_ID`, `SALES_WINS_INITIAL_TIMESTAMP` | Closed-won Slack ingestion from a chosen channel and starting message timestamp |
+| `SALES_WINS_SLACK_CHANNEL_ID`, `SALES_WINS_INITIAL_TIMESTAMP` | Optional closed-won Slack ingestion |
 
-See [`.env.example`](.env.example) for the complete template.
+See [`.env.example`](./.env.example) for the full template.
 
-## Loading data
+## Load real data
 
-Scheduled jobs live in `convex/crons.ts`. They ingest configured sources and separately embed pending chunks. Historical import helpers are available in `scripts/`:
+Scheduled jobs live in `convex/crons.ts`. Historical imports and embedding helpers live in `scripts/`:
 
 ```bash
 bun run scripts/backfill.ts gong 365
 bun run scripts/embed.ts
 ```
 
-Imports can contain sensitive customer data. Local databases, exports, transcripts, and generated reports are intentionally ignored by Git and must never be committed.
+Imports can contain sensitive customer data. Local databases, exports, transcripts, and tickets are ignored by Git and must never be committed.
 
 ## MCP server
 
-The remote MCP endpoint is available at:
+The authenticated MCP endpoint is:
 
 ```text
 https://your-deployment.example/api/mcp
 ```
 
-It uses Clerk OAuth and exposes tools for searching conversations, retrieving source records, and reading generated reports. The authenticated app shows connection details for supported clients.
+It uses Clerk OAuth and exposes tools for hybrid search, full source retrieval, company discovery, and configured Slack context. The signed-in web app shows connection details for supported clients.
 
 ## Commands
 
 ```bash
-bun run dev        # Next.js on port 3030
-bun run convex     # Convex development deployment
-bun run test       # Unit tests
-bun run typecheck  # TypeScript checks
-bun run build      # Production build
+bun run dev          # Next.js on port 3030
+bun run convex       # Keep the Convex dev backend running
+bun run convex:once  # Sync Convex once and exit
+bun run seed         # Add synthetic demo data
+bun run seed:clear   # Remove synthetic demo data
+bun run test         # Unit tests
+bun run typecheck    # TypeScript checks
+bun run build        # Production build
 ```
 
-## Contributing and security
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report vulnerabilities according to [SECURITY.md](SECURITY.md), and use only synthetic data in public issues, tests, screenshots, and examples.
+The cover image is reproducible from [`public/cover/preview.html`](./public/cover/preview.html).

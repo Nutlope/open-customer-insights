@@ -1,7 +1,6 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAdmin } from "../lib/convex/auth";
 import { getSlackToken, requireSlackToken, slackFetch, slackTsToIso, type SlackHistoryMessage } from "../lib/convex/slack";
 import { ensureCompanyProfileForActivity, incrementCompanyLifetimeRevenue, addCompanyRevenueCategory, normalizeCompanyDomain } from "../lib/convex/companies";
 import { parseClosedWonMessage, type SalesWinDeal } from "../lib/sales-wins/parse";
@@ -125,7 +124,7 @@ export const insertResolvedRevenueDealInternal = internalMutation({
   },
 });
 
-// Queues a deal for manual domain review (see app/admin/pending-revenue-deals).
+// Queues a deal for manual domain review through internal maintenance functions.
 // Idempotent on the source Slack message so re-scanning never duplicates it.
 export const insertPendingRevenueDealInternal = internalMutation({
   args: {
@@ -270,10 +269,9 @@ export const scanSalesWinsInternal = internalAction({
   },
 });
 
-export const listPendingRevenueDeals = query({
+export const listPendingRevenueDealsInternal = internalQuery({
   args: { status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))) },
   handler: async (ctx, { status }) => {
-    await requireAdmin({ ctx });
     const deals = status
       ? await ctx.db.query("pendingRevenueDeals").withIndex("by_status", (q) => q.eq("status", status)).collect()
       : await ctx.db.query("pendingRevenueDeals").collect();
@@ -281,10 +279,9 @@ export const listPendingRevenueDeals = query({
   },
 });
 
-export const approvePendingRevenueDeal = mutation({
+export const approvePendingRevenueDealInternal = internalMutation({
   args: { dealId: v.id("pendingRevenueDeals"), domain: v.string() },
   handler: async (ctx, { dealId, domain }) => {
-    const email = await requireAdmin({ ctx });
     const deal = await ctx.db.get(dealId);
     if (!deal || deal.status !== "pending") throw new Error("Deal not found or already resolved");
 
@@ -309,16 +306,15 @@ export const approvePendingRevenueDeal = mutation({
     await incrementCompanyLifetimeRevenue({ ctx, domain: normalizedDomain, amount: deal.amount, year: deal.year });
     await addCompanyRevenueCategory({ ctx, domain: normalizedDomain, category: deal.category });
 
-    await ctx.db.patch(dealId, { status: "approved", resolvedAt: Date.now(), resolvedByEmail: email, resolvedDomain: normalizedDomain });
+    await ctx.db.patch(dealId, { status: "approved", resolvedAt: Date.now(), resolvedByEmail: "system", resolvedDomain: normalizedDomain });
   },
 });
 
-export const rejectPendingRevenueDeal = mutation({
+export const rejectPendingRevenueDealInternal = internalMutation({
   args: { dealId: v.id("pendingRevenueDeals") },
   handler: async (ctx, { dealId }) => {
-    const email = await requireAdmin({ ctx });
     const deal = await ctx.db.get(dealId);
     if (!deal || deal.status !== "pending") throw new Error("Deal not found or already resolved");
-    await ctx.db.patch(dealId, { status: "rejected", resolvedAt: Date.now(), resolvedByEmail: email });
+    await ctx.db.patch(dealId, { status: "rejected", resolvedAt: Date.now(), resolvedByEmail: "system" });
   },
 });

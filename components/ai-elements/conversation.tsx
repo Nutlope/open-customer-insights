@@ -49,7 +49,7 @@ export const ConversationScrollButton = ({
     !isAtBottom && (
       <Button
         className={cn(
-          "absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full bg-white dark:bg-popover hover:bg-muted shadow-md border",
+          "animate-message-in absolute bottom-4 left-[50%] size-8 translate-x-[-50%] cursor-pointer rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-overlay transition-[background-color,color] duration-150 hover:bg-zinc-50 hover:text-zinc-950",
           className
         )}
         onClick={handleScrollToBottom}

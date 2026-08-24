@@ -5,14 +5,6 @@ import {
   searchInputSchema,
 } from "./definitions";
 import {
-  LIST_DAILY_INSIGHTS_TOOL_DESCRIPTION,
-  listDailyInsightsInputSchema,
-} from "./daily-insights";
-import {
-  LIST_PROSPECTS_TOOL_DESCRIPTION,
-  listProspectsInputSchema,
-} from "./prospects";
-import {
   GET_SLACK_CHANNEL_HISTORY_TOOL_DESCRIPTION,
   GET_SLACK_THREAD_TOOL_DESCRIPTION,
   LIST_SLACK_CHANNELS_TOOL_DESCRIPTION,
@@ -37,16 +29,6 @@ export const toolCatalog = {
     name: "get",
     description: GET_TOOL_DESCRIPTION,
     inputSchema: getInputSchema,
-  },
-  listDailyInsights: {
-    name: "list_daily_insights",
-    description: LIST_DAILY_INSIGHTS_TOOL_DESCRIPTION,
-    inputSchema: listDailyInsightsInputSchema,
-  },
-  listProspects: {
-    name: "list_prospects",
-    description: LIST_PROSPECTS_TOOL_DESCRIPTION,
-    inputSchema: listProspectsInputSchema,
   },
   listSlackChannels: {
     name: "list_slack_channels",

@@ -3,7 +3,6 @@ import { getThreadMetadata } from "@convex-dev/agent";
 import { components } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../convex/_generated/server";
-import { isAdminEmail } from "./auth";
 
 type Identity = NonNullable<Awaited<ReturnType<QueryCtx["auth"]["getUserIdentity"]>>>;
 
@@ -31,7 +30,6 @@ export async function getCurrentUser({
   ctx: QueryCtx | MutationCtx;
 }): Promise<{
   userId: Id<"users">;
-  isAdmin: boolean;
 }> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Unauthorized");
@@ -42,10 +40,7 @@ export async function getCurrentUser({
     .unique();
 
   if (existing) {
-    return {
-      userId: existing._id,
-      isAdmin: isAdminEmail({ email: identity.email ?? existing.email }),
-    };
+    return { userId: existing._id };
   }
 
   if (!("insert" in ctx.db)) throw new Error("User not found");
@@ -57,10 +52,7 @@ export async function getCurrentUser({
     createdAt: Date.now(),
   });
 
-  return {
-    userId,
-    isAdmin: isAdminEmail({ email: identity.email }),
-  };
+  return { userId };
 }
 
 export async function assertThreadAccess({
@@ -75,7 +67,7 @@ export async function assertThreadAccess({
 }> {
   const currentUser = await getCurrentUser({ ctx });
   const thread = await getThreadMetadata(ctx, components.agent, { threadId });
-  if (thread.userId !== currentUser.userId && !currentUser.isAdmin) {
+  if (thread.userId !== currentUser.userId) {
     throw new Error("Thread not found");
   }
   return { userId: currentUser.userId, thread };

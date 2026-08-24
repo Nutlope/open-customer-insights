@@ -1,26 +1,21 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { Command } from "cmdk";
 import {
   Building2Icon,
-  CalendarDaysIcon,
   CopyIcon,
   ExternalLinkIcon,
-  GitMergeIcon,
   HomeIcon,
   LinkIcon,
   MessageSquarePlusIcon,
-  ShieldCheckIcon,
   SwordsIcon,
-  UsersIcon,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
-import { isAdminEmail } from "@/lib/convex/auth";
 import { MCP_API_URL } from "@/lib/constants";
 import { SHOW_CMDK } from "@/lib/features";
 import type { CmdkItem } from "@/lib/cmdk/types";
@@ -116,13 +111,10 @@ function renderItem({ item, onSelect }: { item: CmdkItem; onSelect: (item: CmdkI
 export function CmdkPalette() {
   const { open, setOpen, contextItems } = useCmdkController();
   const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  const isAdmin = isAdminEmail({ email: user?.primaryEmailAddress?.emailAddress });
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -146,21 +138,12 @@ export function CmdkPalette() {
   );
 
   const navItems = useMemo<CmdkItem[]>(() => {
-    const items: CmdkItem[] = [
+    return [
       { type: "navigate", label: "Home", href: "/", icon: <HomeIcon className={ICON_CLASS} /> },
-      { type: "navigate", label: "Daily insights", href: "/daily", icon: <CalendarDaysIcon className={ICON_CLASS} /> },
       { type: "navigate", label: "Competitors", href: "/competitors", icon: <SwordsIcon className={ICON_CLASS} /> },
       { type: "navigate", label: "Companies", href: "/companies", icon: <Building2Icon className={ICON_CLASS} /> },
     ];
-    if (isAdmin) {
-      items.push(
-        { type: "navigate", label: "Prospects", href: "/prospects", icon: <UsersIcon className={ICON_CLASS} /> },
-        { type: "navigate", label: "Admin", href: "/admin", icon: <ShieldCheckIcon className={ICON_CLASS} />, keywords: "usage" },
-        { type: "navigate", label: "Merge review", href: "/admin/merges", icon: <GitMergeIcon className={ICON_CLASS} />, keywords: "domain merges" },
-      );
-    }
-    return items;
-  }, [isAdmin]);
+  }, []);
 
   const globalActions = useMemo<CmdkItem[]>(
     () => [

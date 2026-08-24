@@ -8,9 +8,6 @@ import AppHeader from "./AppHeader";
 const sectionLabels: Record<string, string> = {
   companies: "companies",
   competitors: "competitors",
-  daily: "daily",
-  prospects: "prospects",
-  revenue: "revenue",
 };
 
 function sectionFromPathname({ pathname }: { pathname: string }): string | undefined {
@@ -36,10 +33,7 @@ export default function RootAppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
   const isChatRoute = pathname === "/" || pathname === "/chat" || pathname.startsWith("/chat/");
-
-  if (isAdminRoute) return children;
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-zinc-50 text-zinc-950">

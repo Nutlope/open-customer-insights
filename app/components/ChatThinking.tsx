@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import { useState } from "react";
+import {
+  BrainIcon,
+  ChevronRightIcon,
+  FileTextIcon,
+  ListIcon,
+  SearchIcon,
+  WrenchIcon,
+} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ReasoningUIPart, TextUIPart } from "ai";
 import { MessageResponse } from "@/components/ai-elements/message";
-import { Spinner } from "@/components/ui/spinner";
 
 type ToolPart = {
   type: `tool-${string}`;
@@ -89,18 +95,6 @@ export function getVisibleTextParts({
   return parts.slice(finalOutputStart).filter(isTextPart);
 }
 
-function latestThinkingSummary({ parts }: { parts: ChatMessagePart[] }): ThinkingSummaryPart | null {
-  const firstTextIndex = firstTextPartIndex({ parts });
-  const summarySearchEnd = firstTextIndex === -1 ? parts.length : firstTextIndex;
-
-  for (let i = summarySearchEnd - 1; i >= 0; i--) {
-    const part = parts[i]!;
-    if (isThinkingSummaryPart(part)) return part;
-  }
-
-  return null;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -133,21 +127,22 @@ function summarizeToolTitle({
   toolName: string;
   input: unknown;
 }): string {
-  if (toolName === "search" && isRecord(input)) {
-    const query = stringValue({ value: input.query });
-    const source = stringValue({ value: input.source }) ?? "all";
-    return query ? `Searching ${source} for "${query}"` : `Browsing ${source}`;
+  if (toolName === "search") {
+    if (isRecord(input)) {
+      const query = stringValue({ value: input.query });
+      const source = stringValue({ value: input.source }) ?? "all";
+      if (query) return `Searching ${source} for "${query}"`;
+      return `Browsing ${source}`;
+    }
+    return "Searching";
   }
 
-  if (toolName === "get" && isRecord(input)) {
-    const id = stringValue({ value: input.id });
-    return `Opening ${id ? shortValue({ value: id, maxLength: 28 }) : "source"}`;
+  if (toolName === "get") {
+    const id = isRecord(input) ? stringValue({ value: input.id }) : null;
+    return `Reading ${id ? shortValue({ value: id, maxLength: 28 }) : "a source"}`;
   }
 
-  if (toolName === "list_daily_insights") return "Listing daily insights";
-  if (toolName === "list_prospects") return "Listing prospects";
-
-  return `Used ${toolName.replaceAll("_", " ")}`;
+  return `Running ${toolName.replaceAll("_", " ")}`;
 }
 
 function toolInputDetails({ input }: { input: unknown }): Array<{ label: string; value: string }> {
@@ -195,108 +190,158 @@ function summarizeToolOutput({ output }: { output: unknown }): string | null {
   return null;
 }
 
-function ThinkingDisclosure({
-  title,
-  children,
-  isActive = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  isActive?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(isActive);
-  const wasActive = useRef(isActive);
+function latestThinkingSummary({ parts }: { parts: ChatMessagePart[] }): ThinkingSummaryPart | null {
+  const firstTextIndex = firstTextPartIndex({ parts });
+  const summarySearchEnd = firstTextIndex === -1 ? parts.length : firstTextIndex;
 
-  useEffect(() => {
-    if (isActive) {
-      setIsOpen(true);
-    } else if (wasActive.current) {
-      setIsOpen(false);
+  for (let i = summarySearchEnd - 1; i >= 0; i--) {
+    const part = parts[i]!;
+    if (isThinkingSummaryPart(part)) return part;
+  }
+
+  return null;
+}
+
+/* The one-line status shown while the model is still working: the most recent
+   meaningful activity, walking backwards through the raw parts stream. */
+function liveActivityText({ parts }: { parts: ChatMessagePart[] }): string {
+  const firstTextIndex = firstTextPartIndex({ parts });
+  const searchEnd = firstTextIndex === -1 ? parts.length : firstTextIndex;
+
+  for (let i = searchEnd - 1; i >= 0; i--) {
+    const part = parts[i]!;
+    if (isThinkingSummaryPart(part)) {
+      const text = part.data.text.replace(/[.\s]+$/g, "");
+      if (text) return text;
     }
-    wasActive.current = isActive;
-  }, [isActive]);
+    if (part.type.startsWith("tool-")) {
+      const toolPart = part as ToolPart;
+      return summarizeToolTitle({
+        toolName: toolPart.type.replace("tool-", ""),
+        input: toolPart.input,
+      });
+    }
+    if (part.type === "reasoning") return "Thinking";
+  }
+
+  return "Thinking";
+}
+
+type StepKind = "reasoning" | "search" | "get" | "list" | "tool";
+
+function stepKind({ part }: { part: ChatMessagePart }): StepKind {
+  if (part.type === "reasoning") return "reasoning";
+  const toolName = part.type.replace("tool-", "");
+  if (toolName === "search") return "search";
+  if (toolName === "get") return "get";
+  if (toolName.startsWith("list")) return "list";
+  return "tool";
+}
+
+const stepIcons: Record<StepKind, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+  reasoning: BrainIcon,
+  search: SearchIcon,
+  get: FileTextIcon,
+  list: ListIcon,
+  tool: WrenchIcon,
+};
+
+const detailEase = [0.32, 0.72, 0, 1] as const;
+
+function ThinkingStep({
+  part,
+  isActive,
+  shouldReduceMotion,
+}: {
+  part: ChatMessagePart;
+  isActive: boolean;
+  shouldReduceMotion: boolean | null;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const kind = stepKind({ part });
+  const Icon = stepIcons[kind];
+
+  const isReasoning = kind === "reasoning";
+  const reasoningText = isReasoning ? (part as ReasoningUIPart).text : "";
+  const toolPart = isReasoning ? null : (part as ToolPart);
+  const isToolError = toolPart?.state === "output-error";
+
+  const title = isReasoning
+    ? reasoningText.replace(/\s+/g, " ").trim() || "Thinking"
+    : summarizeToolTitle({
+        toolName: toolPart!.type.replace("tool-", ""),
+        input: toolPart!.input,
+      });
+
+  const details = toolPart ? toolInputDetails({ input: toolPart.input }) : [];
+  const outputSummary = toolPart ? summarizeToolOutput({ output: toolPart.output }) : null;
 
   return (
-    <div>
+    <div className="animate-step-in">
       <button
         type="button"
+        aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full cursor-pointer items-center gap-1.5 text-left text-xs font-medium text-zinc-400 transition-[color] hover:text-zinc-600"
+        className="group/step flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md px-1.5 py-[5px] text-left transition-[background-color] duration-150 hover:bg-zinc-200/50"
       >
-        <ChevronDownIcon className={`size-3 shrink-0 transition-transform ${isOpen ? "rotate-180" : "-rotate-90"}`} />
-        <span className="flex min-w-0 flex-1 items-center">
-          <span className="truncate">{title}</span>
-        </span>
-        {isActive && <Spinner className="size-3 shrink-0 text-zinc-500" />}
+        <Icon
+          className={`size-3.5 shrink-0 ${isToolError ? "text-rose-500" : "text-zinc-400"}`}
+          strokeWidth={1.8}
+        />
+        {isActive && !shouldReduceMotion ? (
+          <span className="text-shimmer min-w-0 flex-1 truncate text-sm leading-5">{title}</span>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-sm leading-5 text-zinc-500 transition-[color] group-hover/step:text-zinc-800">
+            {title}
+          </span>
+        )}
+        <ChevronRightIcon
+          className={`size-3.5 shrink-0 text-zinc-300 transition-[rotate,color] duration-200 group-hover/step:text-zinc-500 ${isOpen ? "rotate-90" : ""}`}
+        />
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            initial={shouldReduceMotion ? false : { height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.16, ease: "easeInOut" }}
+            exit={shouldReduceMotion ? undefined : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: detailEase }}
             className="overflow-hidden"
           >
-            <div className="mt-1 max-w-full text-xs leading-5 text-zinc-500">{children}</div>
+            <div className="space-y-2 py-1.5 pl-[30px] pr-2">
+              {isReasoning ? (
+                <MessageResponse variant="compact">
+                  {reasoningText}
+                </MessageResponse>
+              ) : (
+                <>
+                  {details.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {details.map((detail) => (
+                        <span
+                          key={`${detail.label}-${detail.value}`}
+                          className="rounded-md bg-white px-1.5 py-0.5 text-xs leading-5 text-zinc-500 border border-zinc-200/80"
+                        >
+                          <span className="text-zinc-400">{detail.label}</span> {detail.value}
+                        </span>
+                      ))}
+                    </div>
+                  ) : toolPart?.state !== "output-available" && !isToolError ? (
+                    <p className="text-sm text-zinc-400">Waiting for the tool to finish...</p>
+                  ) : null}
+                  {toolPart?.state === "output-available" && outputSummary && (
+                    <pre className="line-clamp-4 whitespace-pre-wrap rounded-md bg-white px-2.5 py-1.5 font-mono text-xs leading-5 text-zinc-500 border border-zinc-200/80">
+                      {outputSummary}
+                    </pre>
+                  )}
+                  {isToolError && <p className="text-sm text-rose-600">Tool returned an error.</p>}
+                </>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function ThinkingTextDisclosure({
-  text,
-  isActive = false,
-}: {
-  text: string;
-  isActive?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const previewText = text.replace(/\s+/g, " ").trim();
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full cursor-pointer items-start gap-1.5 text-left text-sm leading-6 text-zinc-500 transition-[color] hover:text-zinc-700"
-      >
-        <ChevronDownIcon className={`mt-1.5 size-3.5 shrink-0 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : "-rotate-90"}`} />
-        <span className="min-w-0 flex-1 truncate">{previewText || "Reasoning details"}</span>
-        {isActive && <Spinner className="mt-1.5 size-3.5 shrink-0 text-zinc-500" />}
-      </button>
-      {isOpen && (
-        <div className="mt-1 pl-5 text-sm leading-6 text-zinc-500">
-          <MessageResponse className="text-sm leading-6 [&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 [&_code]:py-0.5 [&_pre]:max-h-56 [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:bg-zinc-100 [&_pre]:p-2 [&_pre]:text-xs">
-            {text}
-          </MessageResponse>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WorkingLabel({
-  isStreaming,
-  shouldReduceMotion,
-}: {
-  isStreaming: boolean;
-  shouldReduceMotion: boolean | null;
-}) {
-  if (!isStreaming || shouldReduceMotion) {
-    return <span className="text-sm font-semibold text-zinc-700">{isStreaming ? "Working" : "Steps"}</span>;
-  }
-
-  return (
-    <motion.span
-      className="bg-[linear-gradient(90deg,#71717a_0%,#18181b_45%,#71717a_90%)] bg-[length:220%_100%] bg-clip-text text-sm font-semibold text-transparent"
-      animate={{ backgroundPosition: ["120% 0%", "-120% 0%"] }}
-      transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
-    >
-      Working
-    </motion.span>
   );
 }
 
@@ -307,21 +352,17 @@ export function ThinkingSteps({
   parts: ChatMessagePart[];
   isStreaming: boolean;
 }) {
-  const steps = parts.filter(isThinkingPart);
-  const summary = latestThinkingSummary({ parts });
-  const summaryText = summary?.data.text ?? (isStreaming ? "Working through the request." : "Done.");
-  const activeSummaryText = isStreaming ? `${summaryText.replace(/[.\s]+$/g, "")}...` : summaryText;
   const [isOpen, setIsOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+  const steps = parts.filter(isThinkingPart);
 
   if (steps.length === 0) return null;
 
-  const toolCount = steps.filter((p) => p.type.startsWith("tool-")).length;
-  const thoughtCount = steps.filter((p) => p.type === "reasoning").length;
-  const countParts = [
-    thoughtCount > 0 ? `${thoughtCount} thought${thoughtCount === 1 ? "" : "s"}` : null,
-    toolCount > 0 ? `${toolCount} tool${toolCount === 1 ? "" : "s"}` : null,
-  ].filter(Boolean);
+  const doneSummary = latestThinkingSummary({ parts })?.data.text.replace(/[.\s]+$/g, "");
+  const stepsLabel = `${steps.length} step${steps.length === 1 ? "" : "s"}`;
+  const collapsedLabel = isStreaming
+    ? liveActivityText({ parts })
+    : doneSummary || "Worked through the request";
   const activeStepIndex = isStreaming ? steps.length - 1 : -1;
 
   return (
@@ -330,77 +371,43 @@ export function ThinkingSteps({
         type="button"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="group flex w-full max-w-full cursor-pointer items-start gap-2 rounded-md px-0 py-1.5 text-left transition-[color] hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2"
+        className="group/trace flex h-8 w-full min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
       >
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <WorkingLabel isStreaming={isStreaming} shouldReduceMotion={shouldReduceMotion} />
-            {countParts.length > 0 && (
-              <span className="truncate text-sm text-zinc-400">{countParts.join(", ")}</span>
-            )}
+        {isStreaming && !shouldReduceMotion ? (
+          <span className="text-shimmer min-w-0 truncate text-sm font-medium leading-5">
+            {collapsedLabel}
           </span>
-          <span className="mt-1 flex min-w-0 items-center gap-2 text-sm leading-6 text-zinc-500">
-            {isStreaming && <Spinner className="size-3.5 shrink-0 text-zinc-400" />}
-            <span className="min-w-0 text-pretty">{activeSummaryText}</span>
+        ) : (
+          <span className="min-w-0 truncate text-sm font-medium leading-5 text-zinc-500 transition-[color] group-hover/trace:text-zinc-800">
+            {collapsedLabel}
           </span>
-        </span>
-        <ChevronDownIcon className={`mt-1.5 size-4 shrink-0 text-zinc-400 transition-transform group-hover:text-zinc-600 ${isOpen ? "rotate-180" : "-rotate-90"}`} />
+        )}
+        {!isStreaming && (
+          <span className="shrink-0 text-sm leading-5 text-zinc-400">· {stepsLabel}</span>
+        )}
+        <ChevronRightIcon
+          className={`size-3.5 shrink-0 text-zinc-400 transition-[rotate,color] duration-200 group-hover/trace:text-zinc-600 ${isOpen ? "rotate-90" : ""}`}
+        />
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            initial={shouldReduceMotion ? false : { height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="mt-1 space-y-2 overflow-hidden border-l border-zinc-200 pl-3"
+            exit={shouldReduceMotion ? undefined : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: detailEase }}
+            className="overflow-hidden"
           >
-            {steps.map((part, index) => {
-              if (part.type === "reasoning") {
-                const reasoningPart = part as ReasoningUIPart;
-                return (
-                  <ThinkingTextDisclosure
-                    key={index}
-                    text={reasoningPart.text}
-                    isActive={index === activeStepIndex}
-                  />
-                );
-              }
-              const toolPart = part as ToolPart;
-              const toolName = toolPart.type.replace("tool-", "");
-              const details = toolInputDetails({ input: toolPart.input });
-              const outputSummary = summarizeToolOutput({ output: toolPart.output });
-              return (
-                <ThinkingDisclosure
+            <div className="mb-1 mt-0.5 space-y-px">
+              {steps.map((part, index) => (
+                <ThinkingStep
                   key={index}
-                  title={summarizeToolTitle({ toolName, input: toolPart.input })}
+                  part={part}
                   isActive={index === activeStepIndex}
-                >
-                  <div className="space-y-2">
-                    {details.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {details.map((detail) => (
-                          <span
-                            key={`${detail.label}-${detail.value}`}
-                            className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-500"
-                          >
-                            <span className="text-zinc-400">{detail.label}</span> {detail.value}
-                          </span>
-                        ))}
-                      </div>
-                    ) : toolPart.state !== "output-available" ? (
-                      <p>Running tool...</p>
-                    ) : null}
-                    {toolPart.state === "output-available" && outputSummary && (
-                      <pre className="line-clamp-4 whitespace-pre-wrap rounded-md bg-zinc-100 px-2 py-1.5 font-mono text-xs leading-5 text-zinc-600 shadow-[inset_0_0_0_1px_rgba(24,24,27,0.08)]">
-                        {outputSummary}
-                      </pre>
-                    )}
-                    {toolPart.state === "output-error" && <p className="text-rose-600">Tool returned an error.</p>}
-                  </div>
-                </ThinkingDisclosure>
-              );
-            })}
+                  shouldReduceMotion={shouldReduceMotion}
+                />
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -28,8 +28,6 @@ import { resolveBestChatModelId } from "../lib/chat/router";
 import { SEARCH_TOOL_USAGE_GUIDANCE } from "../lib/tools/definitions";
 import { WEB_APP_TOOL_OUTPUT_OPTIONS } from "../lib/tools/output";
 import { getTool } from "../lib/tools/get";
-import { listDailyInsightsTool } from "../lib/tools/daily-insights";
-import { listProspectsTool } from "../lib/tools/prospects";
 import { listCompaniesTool } from "../lib/tools/companies";
 import {
   getSlackChannelHistoryTool,
@@ -50,8 +48,6 @@ Use search only for concrete evidence phrases, and use no query when browsing ca
 function systemPrompt(): string {
   return `You are a helpful assistant that searches call transcripts, support tickets, and bounded Slack context.
 Use search to find relevant call/ticket content, then get to fetch full transcripts or message threads when needed.
-Use list_daily_insights for generated daily customer insight reports and executive daily summaries.
-Use list_prospects for prospect segment dashboards, qualified accounts, fit scores, and prospect evidence.
 Use list_slack_channels to discover Slack channels the bot can read.
 Use read_slack_channel for latest/recent messages in a specific Slack channel.
 Use search_slack for live Slack context about companies or prospects, then read_slack_thread to fetch full Slack threads.
@@ -66,7 +62,7 @@ ${WEB_APP_QUERY_CLARIFICATION_GUIDANCE}
 
 Use search/get for concrete evidence and exact customer wording.
 When the user asks for calls with a named company/person/account, search calls using the short exact name first, then fetch the matching call ids with get. Do not conclude there are no direct calls from list_companies alone.
-If Slack or daily insights mention a call id, fetch that call id with get before summarizing it.
+If Slack mentions a call id, fetch that call id with get before summarizing it.
 
 Format answers as Markdown. Never use Markdown tables.
 The chat panel is narrow, especially on mobile:
@@ -106,20 +102,6 @@ function buildChatTools({
       inputSchema: toolCatalog.get.inputSchema,
       execute: async ({ id }) => {
         return getTool({ convex, clerkId, serverSecret, id, outputOptions: WEB_APP_TOOL_OUTPUT_OPTIONS });
-      },
-    }),
-    [toolCatalog.listDailyInsights.name]: tool({
-      description: toolCatalog.listDailyInsights.description,
-      inputSchema: toolCatalog.listDailyInsights.inputSchema,
-      execute: async ({ from, to, limit, status, company }) => {
-        return listDailyInsightsTool({ convex, serverSecret, from, to, limit, status, company, outputOptions: WEB_APP_TOOL_OUTPUT_OPTIONS });
-      },
-    }),
-    [toolCatalog.listProspects.name]: tool({
-      description: toolCatalog.listProspects.description,
-      inputSchema: toolCatalog.listProspects.inputSchema,
-      execute: async ({ segmentSlug, company, limit }) => {
-        return listProspectsTool({ convex, serverSecret, segmentSlug, company, limit, outputOptions: WEB_APP_TOOL_OUTPUT_OPTIONS });
       },
     }),
     [toolCatalog.listSlackChannels.name]: tool({

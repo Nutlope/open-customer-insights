@@ -15,20 +15,6 @@ interface RequireServerSecretParams extends ServerSecretParams {
   operation: string;
 }
 
-interface RequireAdminParams {
-  ctx: AuthCtx;
-}
-
-export function isAdminEmail({ email }: { email?: string | null }): boolean {
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (adminEmails.length === 0) return false;
-  return Boolean(email && adminEmails.includes(email.toLowerCase()));
-}
-
 export function hasValidServerSecret({ serverSecret }: ServerSecretParams): boolean {
   const expected = process.env.INTERNAL_CONVEX_SECRET;
   return Boolean(expected && serverSecret && serverSecret === expected);
@@ -62,11 +48,4 @@ export async function requireAuthenticated({ ctx, serverSecret }: { ctx: AuthCtx
   const identity = await ctx.auth.getUserIdentity();
   if (identity || hasValidServerSecret({ serverSecret })) return;
   throw new Error("Unauthorized");
-}
-
-export async function requireAdmin({ ctx }: RequireAdminParams): Promise<string | undefined> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new Error("Unauthorized");
-  if (!isAdminEmail({ email: identity.email })) throw new Error("Forbidden");
-  return identity.email ?? undefined;
 }

@@ -1,14 +1,12 @@
 import {
   Building2Icon,
-  CalendarDaysIcon,
   HeadphonesIcon,
   MessageSquareIcon,
   SwordsIcon,
-  UsersIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type SourceVisualKey = "daily" | "prospects" | "calls" | "tickets" | "slack" | "competitors" | "companies";
+export type SourceVisualKey = "calls" | "tickets" | "slack" | "competitors" | "companies";
 
 type SourceIconProps = {
   className?: string;
@@ -46,22 +44,6 @@ function SlackLogo({ className }: { className?: string }) {
 }
 
 export const sourceVisuals: Record<SourceVisualKey, SourceVisual> = {
-  daily: {
-    label: "Daily",
-    textClassName: "text-sky-700",
-    badgeClassName: "bg-sky-50 text-sky-700 ring-sky-100",
-    renderIcon: ({ className, strokeWidth = 2 }) => (
-      <CalendarDaysIcon className={className} strokeWidth={strokeWidth} />
-    ),
-  },
-  prospects: {
-    label: "Prospects",
-    textClassName: "text-emerald-700",
-    badgeClassName: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    renderIcon: ({ className, strokeWidth = 2 }) => (
-      <UsersIcon className={className} strokeWidth={strokeWidth} />
-    ),
-  },
   calls: {
     label: "Calls",
     textClassName: "text-violet-700",

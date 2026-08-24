@@ -1,11 +1,9 @@
 "use client";
 
-import { SignInButton, UserButton, useAuth, useUser } from "@clerk/nextjs";
-import { TrendingUpIcon } from "lucide-react";
+import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import { APP_NAME } from "@/lib/constants";
-import { isAdminEmail } from "@/lib/convex/auth";
 import { SHOW_CMDK } from "@/lib/features";
 import { cn } from "@/lib/utils";
 import ConnectMcpPopover from "./ConnectMcpPopover";
@@ -48,10 +46,7 @@ export default function AppHeader({
   mcpUrl?: string;
 }) {
   const { isSignedIn, isLoaded } = useAuth();
-  const { user } = useUser();
   const { setOpen: setCmdkOpen } = useCmdkController();
-  const email = user?.primaryEmailAddress?.emailAddress;
-  const isAdmin = isAdminEmail({ email });
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-zinc-200 bg-white px-3 sm:px-5">
@@ -86,28 +81,12 @@ export default function AppHeader({
               Home
             </HeaderLink>
             <HeaderLink
-              href="/daily"
-              isSelected={section === "daily"}
-              icon={<SourceIcon source="daily" />}
-            >
-              Daily
-            </HeaderLink>
-            <HeaderLink
               href="/competitors"
               isSelected={section === "competitors"}
               icon={<SourceIcon source="competitors" />}
             >
               Competitors
             </HeaderLink>
-            {isAdmin && (
-              <HeaderLink
-                href="/prospects"
-                isSelected={section === "prospects"}
-                icon={<SourceIcon source="prospects" />}
-              >
-                Prospects
-              </HeaderLink>
-            )}
             <HeaderLink
               href="/companies"
               isSelected={section === "companies"}
@@ -115,16 +94,6 @@ export default function AppHeader({
             >
               Companies
             </HeaderLink>
-            {isAdmin && (
-              <HeaderLink
-                href="/revenue"
-                isSelected={section === "revenue"}
-                icon={<TrendingUpIcon className="size-3.5 text-emerald-600" strokeWidth={2} />}
-                className="hidden sm:inline-flex"
-              >
-                Revenue
-              </HeaderLink>
-            )}
           </nav>
         )}
         {isLoaded && isSignedIn && SHOW_CMDK && (

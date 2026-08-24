@@ -5,9 +5,9 @@ import { SourceBadgeIcon, type SourceVisualKey } from "./sourceVisuals";
 
 const suggestions = [
   {
-    source: "daily",
-    displayPrompt: "What are the latest daily insights?",
-    prompt: "What are the latest daily insights?",
+    source: "companies",
+    displayPrompt: "Which customers are most active?",
+    prompt: "Which customers have the most recent activity, and what are they discussing?",
   },
   {
     source: "calls",
@@ -42,7 +42,7 @@ export default function ChatSuggestions({
       {suggestions.map((suggestion, index) => (
         <Suggestion
           key={suggestion.prompt}
-          className={`${index > 1 ? "hidden sm:flex" : ""} h-auto min-w-0 max-w-full justify-start rounded-full border-zinc-200/70 bg-white/70 px-2.5 py-1.5 text-left text-xs font-medium text-zinc-500 shadow-none transition-[background-color,border-color,color,transform] hover:border-zinc-300 hover:bg-white hover:text-zinc-800 active:scale-[0.98]`}
+          className={`${index > 1 ? "hidden sm:flex" : ""} h-auto min-w-0 max-w-full justify-start rounded-full border-zinc-200 bg-white px-2.5 py-1.5 text-left text-xs font-medium text-zinc-500 shadow-none transition-[background-color,border-color,color,transform] hover:border-zinc-300 hover:text-zinc-800 active:scale-[0.98]`}
           onClick={() => onPromptSelect({ prompt: suggestion.prompt })}
           suggestion={suggestion.prompt}
         >

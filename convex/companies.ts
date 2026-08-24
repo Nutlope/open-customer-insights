@@ -1,8 +1,8 @@
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { DatabaseReader, MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { requireAuthenticated, requireAdmin } from "../lib/convex/auth";
+import { requireAuthenticated } from "../lib/convex/auth";
 import { sortCompanyProfiles, incrementCompanyLifetimeRevenue, addCompanyRevenueCategory, LIFETIME_REVENUE_CUTOFF_YEAR, ensureCompanyProfileForActivity, classifyUnknownCompany, isPersonalEmailDomain, selectTopCompaniesByActivityAndRevenue } from "../lib/convex/companies";
 import { isPlaceholderDomain } from "../lib/domain/placeholderDomain";
 
@@ -1017,7 +1017,7 @@ export const cleanupOrphanedAliasProfiles = internalMutation({
   },
 });
 
-// One-off admin fix: corrects a companyProfiles row's domain/website when the
+// One-off maintenance fix: corrects a companyProfiles row's domain/website when the
 // import pipeline matched it to the wrong real-world domain (e.g. a Clay/Salesforce
 // enrichment that resolved a company's website to an unrelated business).
 export const fixCompanyProfileDomainInternal = internalMutation({
@@ -1267,7 +1267,7 @@ export const updateCompanyAcrFromSalesWinsInternal = internalMutation({
   },
 });
 
-// ─── ACR suggestions (admin) ────────────────────────────────────────────────
+// ─── ACR suggestions (internal maintenance) ────────────────────────────────
 
 export const proposeAcrSuggestionsInternal = internalMutation({
   args: {
@@ -1317,12 +1317,11 @@ export const proposeAcrSuggestionsInternal = internalMutation({
   },
 });
 
-export const listAcrSuggestions = query({
+export const listAcrSuggestionsInternal = internalQuery({
   args: {
     status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
   },
   handler: async (ctx, { status }) => {
-    await requireAdmin({ ctx });
     const suggestions = status
       ? await ctx.db.query("acrSuggestions").withIndex("by_status", (q) => q.eq("status", status)).collect()
       : await ctx.db.query("acrSuggestions").collect();
@@ -1330,10 +1329,9 @@ export const listAcrSuggestions = query({
   },
 });
 
-export const approveAcrSuggestion = mutation({
+export const approveAcrSuggestionInternal = internalMutation({
   args: { suggestionId: v.id("acrSuggestions") },
   handler: async (ctx, { suggestionId }) => {
-    const email = await requireAdmin({ ctx });
     const suggestion = await ctx.db.get(suggestionId);
     if (!suggestion || suggestion.status !== "pending") throw new Error("Suggestion not found or already resolved");
 
@@ -1345,21 +1343,20 @@ export const approveAcrSuggestion = mutation({
 
     const now = Date.now();
     await ctx.db.patch(profile._id, { acr: suggestion.proposedAcr, updatedAt: now });
-    await ctx.db.patch(suggestionId, { status: "approved", resolvedAt: now, resolvedByEmail: email });
+    await ctx.db.patch(suggestionId, { status: "approved", resolvedAt: now, resolvedByEmail: "system" });
   },
 });
 
-export const rejectAcrSuggestion = mutation({
+export const rejectAcrSuggestionInternal = internalMutation({
   args: { suggestionId: v.id("acrSuggestions") },
   handler: async (ctx, { suggestionId }) => {
-    const email = await requireAdmin({ ctx });
     const suggestion = await ctx.db.get(suggestionId);
     if (!suggestion || suggestion.status !== "pending") throw new Error("Suggestion not found or already resolved");
-    await ctx.db.patch(suggestionId, { status: "rejected", resolvedAt: Date.now(), resolvedByEmail: email });
+    await ctx.db.patch(suggestionId, { status: "rejected", resolvedAt: Date.now(), resolvedByEmail: "system" });
   },
 });
 
-// One-off admin merge: moves all companyRevenueDeals from fromDomain to toDomain,
+// One-off maintenance merge: moves all companyRevenueDeals from fromDomain to toDomain,
 // carries over lifetimeRevenue/revenueCategories/name, then calls
 // mergeDomainsIntoCanonical to merge the profiles and delete the stale one.
 export const mergeCompanyDomainsInternal = internalMutation({

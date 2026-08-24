@@ -45,18 +45,4 @@ crons.weekly(
   {}
 );
 
-// Reports: generate daily customer insights.
-crons.daily(
-  "generate daily report",
-  { hourUTC: 8, minuteUTC: 0 },
-  internal.reports.generateReport,
-  { type: "daily" }
-);
-crons.daily(
-  "refresh prospect segments",
-  { hourUTC: 9, minuteUTC: 0 },
-  internal.prospects.refreshDailySegmentsInternal,
-  {}
-);
-
 export default crons;

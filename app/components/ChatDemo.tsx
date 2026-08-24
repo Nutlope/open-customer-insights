@@ -1,6 +1,6 @@
 "use client";
 
-import { useUIMessages } from "@convex-dev/agent/react";
+import { useSmoothText, useUIMessages } from "@convex-dev/agent/react";
 import { useUser } from "@clerk/nextjs";
 import { useAction, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
@@ -66,6 +66,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import ChatErrorBoundary from "./ChatErrorBoundary";
 import ChatSuggestions from "./ChatSuggestions";
@@ -96,6 +97,19 @@ type RecentThread = {
   createdAt: number;
   summary?: string;
 };
+/* Rendered locally the instant the user submits, before the server has
+   created the thread or echoed the message back. baselineOrder is the
+   highest message `order` present at submit time: anything with a greater
+   order belongs to this turn. Order is intrinsic to each message, so the
+   comparison stays correct even while the merged subscription list drops
+   and reinserts entries during reconciliation (an index-based baseline
+   drifted when that happened, letting old messages masquerade as the
+   reply). */
+type OptimisticPrompt = {
+  text: string;
+  baselineOrder: number;
+  threadId?: string;
+};
 type ResolvedChatModel = {
   modelId: string;
   label: string;
@@ -116,6 +130,27 @@ function resolvedModelForMessage({
 }): string | null {
   const resolved = (message as ChatUiMessageModelFields).resolvedModel;
   return resolved?.label ?? getResolvedModelLabel({ parts });
+}
+
+/* Convex delivers stream deltas in throttled batches, so rendering them raw
+   makes text pop in chunks. useSmoothText replays the incoming text at an
+   adaptive per-character rate, and the word-level fade in MessageResponse
+   rides on top of that steady flow. */
+function AssistantAnswerText({
+  text,
+  isStreaming,
+}: {
+  text: string;
+  isStreaming: boolean;
+}) {
+  const [visibleText, { isStreaming: isCatchingUp }] = useSmoothText(text, {
+    startStreaming: isStreaming,
+  });
+  return (
+    <MessageResponse isAnimating={isStreaming || isCatchingUp}>
+      {visibleText}
+    </MessageResponse>
+  );
 }
 
 function relativeTime({ date }: { date: string }): string {
@@ -168,7 +203,6 @@ function sidebarDatasetItems({
       source: "tickets",
     },
     { count: stats?.slackChannelsCount, label: "slack channels", source: "slack" },
-    { count: stats?.dailyInsightsCount, href: "/daily", label: "daily insights", source: "daily" },
     { count: stats?.companiesCount, href: "/companies", label: "companies", source: "companies" },
   ];
 
@@ -190,13 +224,13 @@ function SidebarMetadataFooter({
           const count = item.count;
           if (count === undefined) return null;
           const label = `${count.toLocaleString()} ${item.label}`;
-          const className = "group relative inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full bg-white/70 px-2 py-1 text-[11px] font-medium leading-4 text-zinc-500 shadow-[0_0_0_1px_rgba(24,24,27,0.07)] transition-[background-color,color,box-shadow] hover:bg-white hover:text-zinc-800 hover:shadow-[0_1px_4px_rgba(24,24,27,0.08),0_0_0_1px_rgba(24,24,27,0.10)] focus-visible:bg-white focus-visible:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300";
+          const className = "group relative inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full bg-white/70 px-2 py-1 text-2xs font-medium leading-4 text-zinc-500 border border-zinc-200 transition-[background-color,color,box-shadow] hover:bg-white hover:text-zinc-800 hover:border-zinc-300 focus-visible:bg-white focus-visible:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300";
           const content = (
             <>
               <SourceIcon source={item.source} />
               <span>{label}</span>
               {item.detail && (
-                <span className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 whitespace-nowrap rounded-md bg-zinc-950 px-2 py-1 text-[10px] font-medium leading-4 text-white opacity-0 shadow-[0_10px_24px_rgba(24,24,27,0.18)] transition-[opacity,transform] duration-150 ease-out group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:-translate-y-0.5 group-focus-visible:opacity-100">
+                <span className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 whitespace-nowrap rounded-md bg-zinc-950 px-2 py-1 text-2xs font-medium leading-4 text-white opacity-0 transition-[opacity,transform] duration-150 ease-out group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:-translate-y-0.5 group-focus-visible:opacity-100">
                   {item.detail}
                 </span>
               )}
@@ -259,6 +293,7 @@ function ChatInterface({
   const [activeThreadId, setActiveThreadId] = useState<string | undefined>(threadId);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
   const [stagedSavedQuery, setStagedSavedQuery] = useState<StagedSavedQuery | null>(null);
   const router = useRouter();
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -283,10 +318,54 @@ function ChatInterface({
   const hasStreamingMessage = messages.some(
     (message) => message.status === "pending" || message.status === "streaming"
   );
-  const status = isSubmitting ? "submitted" : hasStreamingMessage ? "streaming" : "ready";
+  /* Everything below derives from the sticky optimisticPrompt state rather
+     than from the raw subscription, because the merged message list flaps
+     while stream deltas and persisted messages reconcile: records and their
+     parts can appear, drop, and reappear across a few frames. Deriving the
+     placeholder from those raw signals is what made the Thinking indicator
+     blink after sending. The turn is only considered answered once an
+     assistant message after the submit baseline has real content (or has
+     settled empty, e.g. an abort). */
+  const messagesAfterBaseline = optimisticPrompt
+    ? messages.filter(
+        (message) => (message.order ?? -1) > optimisticPrompt.baselineOrder
+      )
+    : [];
+  const hasUserMessageAfterBaseline = messagesAfterBaseline.some(
+    (message) => message.role === "user"
+  );
+  const assistantContentAfterBaseline = messagesAfterBaseline.some((message) => {
+    if (message.role !== "assistant") return false;
+    const parts = message.parts as ChatMessagePart[];
+    return (
+      getPreOutputThinkingParts({ parts }).length > 0 ||
+      getVisibleTextParts({ messageRole: "assistant", parts }).some(
+        (part) => part.text.trim().length > 0
+      )
+    );
+  });
+  const assistantSettledAfterBaseline = messagesAfterBaseline.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.status !== "pending" &&
+      message.status !== "streaming"
+  );
+  const isAwaitingReply =
+    optimisticPrompt !== null &&
+    !assistantContentAfterBaseline &&
+    !assistantSettledAfterBaseline;
+  const status =
+    isSubmitting || isAwaitingReply
+      ? "submitted"
+      : hasStreamingMessage
+        ? "streaming"
+        : "ready";
   const isGenerating = status === "submitted" || status === "streaming";
   const isLoadingThread = Boolean(activeThreadId) && messagesStatus === "LoadingFirstPage";
   const isEmptyThread = !isLoadingThread && messages.length === 0 && status === "ready";
+  const showOptimisticPrompt = optimisticPrompt !== null && !hasUserMessageAfterBaseline;
+  const showTrailingThinking = isAwaitingReply;
+  const showThreadSkeleton = isLoadingThread && optimisticPrompt === null;
   const firstName = user?.firstName?.trim() || null;
   const latestAssistantMessageId = [...messages]
     .reverse()
@@ -298,6 +377,7 @@ function ChatInterface({
 
   const startNewChat = useCallback(() => {
     setActiveThreadId(undefined);
+    setOptimisticPrompt(null);
   }, []);
 
   useEffect(() => {
@@ -306,7 +386,30 @@ function ChatInterface({
 
   useEffect(() => {
     setActiveThreadId(threadId);
+    // Navigating to a thread other than the one just submitted into means
+    // the optimistic bubble no longer belongs on screen.
+    setOptimisticPrompt((prev) =>
+      prev && prev.threadId && prev.threadId !== threadId ? null : prev
+    );
   }, [threadId]);
+
+  useEffect(() => {
+    // Retire the optimistic state only once the turn has settled: nothing in
+    // flight and the assistant has either produced content or ended empty.
+    // Clearing it any earlier reopens the flicker window while the
+    // subscription's merged list is still reconciling.
+    if (!optimisticPrompt) return;
+    if (isSubmitting || hasStreamingMessage) return;
+    if (assistantContentAfterBaseline || assistantSettledAfterBaseline) {
+      setOptimisticPrompt(null);
+    }
+  }, [
+    assistantContentAfterBaseline,
+    assistantSettledAfterBaseline,
+    hasStreamingMessage,
+    isSubmitting,
+    optimisticPrompt,
+  ]);
 
   const setTextareaDraft = useCallback(({ text }: { text: string }) => {
     const textarea = textareaRef.current ?? document.querySelector("textarea");
@@ -372,12 +475,20 @@ function ChatInterface({
       if (!text) return;
 
       setIsSubmitting(true);
+      const baselineOrder = messages.reduce(
+        (max, message) => Math.max(max, message.order ?? -1),
+        -1
+      );
+      setOptimisticPrompt({ text, baselineOrder });
       try {
         const submitted = await submitMessageAction({
           model: selectedModelId,
           text,
           threadId: activeThreadId,
         });
+        setOptimisticPrompt((prev) =>
+          prev ? { ...prev, threadId: submitted.threadId } : prev
+        );
         if (stagedSavedQuery && normalizeDisplayText({ text }) === normalizeDisplayText({ text: stagedSavedQuery.query })) {
           void markSavedQueryRunMutation({
             savedQueryId: stagedSavedQuery.savedQueryId,
@@ -389,18 +500,26 @@ function ChatInterface({
         setStagedSavedQuery(null);
         if (!activeThreadId) {
           setActiveThreadId(submitted.threadId);
-          router.push(`/chat/${submitted.threadId}`);
+          // Update the URL without a router navigation: a real navigation
+          // re-renders the route through its Suspense boundary, which can
+          // remount this whole tree mid-stream, wiping the optimistic state
+          // and flashing the page. The chat is state-driven, so only the
+          // address bar needs to change; reloads and shares still resolve
+          // through the /chat/[id] route.
+          window.history.pushState(null, "", `/chat/${submitted.threadId}`);
         }
       } catch (error) {
+        setOptimisticPrompt(null);
         toast.error(error instanceof Error ? error.message : "Could not send message");
       } finally {
         setIsSubmitting(false);
       }
     },
-    [activeThreadId, markSavedQueryRunMutation, router, selectedModelId, stagedSavedQuery, submitMessageAction]
+    [activeThreadId, markSavedQueryRunMutation, messages, selectedModelId, stagedSavedQuery, submitMessageAction]
   );
 
   const stop = useCallback(() => {
+    setOptimisticPrompt(null);
     if (!activeThreadId) return;
     void abortThreadMutation({ threadId: activeThreadId }).catch((error: unknown) => {
       toast.error(error instanceof Error ? error.message : "Could not stop response");
@@ -438,6 +557,15 @@ function ChatInterface({
     },
     [applySavedQueryDraft, router, startNewChat, threadId]
   );
+
+  const copyMessageText = useCallback(async ({ text }: { text: string }) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Response copied");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not copy response");
+    }
+  }, []);
 
   const saveQuery = useCallback(
     async ({ query }: { query: string }) => {
@@ -513,11 +641,11 @@ function ChatInterface({
   }, [router, startNewChat]);
 
   const contentColumnClass = compact
-    ? "mx-auto w-full max-w-[700px]"
+    ? "mx-auto w-full max-w-[768px]"
     : "w-full";
 
   return (
-    <div className={`min-w-0 overflow-hidden ${compact ? "flex h-full w-full flex-col bg-white lg:grid lg:grid-cols-[260px_minmax(0,1fr)]" : "flex h-[65vh] flex-col rounded-lg border border-zinc-200 bg-white md:h-[min(75vh,700px)] md:flex-1 lg:grid lg:grid-cols-[260px_minmax(0,1fr)]"}`}>
+    <div className={`min-w-0 overflow-hidden ${compact ? "flex h-full w-full flex-col bg-zinc-50 lg:grid lg:grid-cols-[260px_minmax(0,1fr)]" : "flex h-[65vh] flex-col rounded-lg border border-zinc-200 bg-white md:h-[min(75vh,700px)] md:flex-1 lg:grid lg:grid-cols-[260px_minmax(0,1fr)]"}`}>
       <SavedQueriesSidebar
         activeThreadId={activeThreadId}
         recentThreads={recentThreads}
@@ -544,11 +672,11 @@ function ChatInterface({
       />
       <div className={`flex min-h-0 min-w-0 flex-1 flex-col lg:col-start-2 lg:h-full ${isEmptyThread ? "px-4 pb-5 pt-6 md:px-6 lg:justify-center lg:py-6" : ""}`}>
         {compact && (
-          <div className={`flex shrink-0 items-center justify-between gap-3 lg:hidden ${isEmptyThread ? "mb-5" : "border-b border-zinc-200 bg-white/80 px-4 py-3 backdrop-blur"}`}>
+          <div className={`flex shrink-0 items-center justify-between gap-3 lg:hidden ${isEmptyThread ? "mb-5" : "border-b border-zinc-200/80 bg-zinc-50/90 px-4 py-3 backdrop-blur"}`}>
             <button
               type="button"
               onClick={openMobileSidebar}
-              className="flex size-10 cursor-pointer items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 transition-[background-color,color,transform] hover:bg-zinc-200/70 hover:text-zinc-950 active:scale-[0.96]"
+              className="flex size-10 cursor-pointer items-center justify-center rounded-lg bg-zinc-200/50 text-zinc-600 transition-[background-color,color,transform] hover:bg-zinc-200/80 hover:text-zinc-950 active:scale-[0.96]"
               aria-label="Open chat history"
             >
               <MenuIcon className="size-4" />
@@ -557,7 +685,7 @@ function ChatInterface({
               <button
                 type="button"
                 onClick={handleNewChat}
-                className="flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-medium text-zinc-500 transition-[background-color,color,transform] hover:bg-zinc-200/70 hover:text-zinc-900 active:scale-[0.96]"
+                className="flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-zinc-200/50 px-2.5 py-1.5 text-xs font-medium text-zinc-600 transition-[background-color,color,transform] hover:bg-zinc-200/80 hover:text-zinc-900 active:scale-[0.96]"
               >
                 <PlusIcon className="size-3.5" />
                 New chat
@@ -568,7 +696,7 @@ function ChatInterface({
         <Conversation className={isEmptyThread ? "flex-none overflow-visible" : undefined}>
           <ConversationContent
             scrollClassName={isEmptyThread ? undefined : "absolute inset-0 overflow-auto"}
-            className={`${isEmptyThread ? "min-h-0 gap-0 px-0 py-0" : "min-h-full px-4 py-8 md:py-10"} w-full *:w-full ${compact ? "[&>*]:mx-auto [&>*]:max-w-[820px]" : ""}`}
+            className={`${isEmptyThread ? "min-h-0 gap-0 px-0 py-0" : "min-h-full px-4 py-8 md:py-10"} w-full *:w-full ${compact ? "[&>*]:mx-auto [&>*]:max-w-[768px]" : ""}`}
           >
             <div
               aria-hidden="true"
@@ -585,10 +713,19 @@ function ChatInterface({
                 parts,
               });
               const messageText = textParts.map((part) => part.text).join("\n\n").trim();
+              // A contentless assistant record (still pending, or settled
+              // empty after an abort) renders nothing; the trailing Thinking
+              // placeholder owns that window. Rendering an empty message here
+              // would add a phantom gap and flicker as the stream reconciles.
+              if (message.role === "assistant" && thinkingParts.length === 0 && !messageText) {
+                return null;
+              }
               const isThinkingActive =
                 message.id === latestAssistantMessageId &&
                 message.role === "assistant" &&
                 status === "streaming";
+              const isMessageStreaming =
+                message.role === "assistant" && message.status === "streaming";
               const resolvedModelLabel =
                 message.role === "assistant" ? resolvedModelForMessage({ message, parts }) : null;
               return (
@@ -611,45 +748,82 @@ function ChatInterface({
                           key={originalIndex}
                           className={message.role === "assistant" ? "w-full" : undefined}
                         >
-                          <MessageResponse>{part.text}</MessageResponse>
+                          {message.role === "assistant" ? (
+                            <AssistantAnswerText
+                              text={part.text}
+                              isStreaming={isMessageStreaming}
+                            />
+                          ) : (
+                            <MessageResponse>{part.text}</MessageResponse>
+                          )}
                         </MessageContent>
                       );
                     })}
                     {message.role === "user" && message.id === firstUserMessageId && messageText && (
-                      <div className="mt-1.5 flex justify-end">
+                      <div className="mt-1 flex justify-end">
                         <button
                           type="button"
                           onClick={() => saveQuery({ query: messageText })}
-                          className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-400 transition-[background-color,color,transform] hover:bg-zinc-100 hover:text-zinc-900 active:scale-[0.96]"
+                          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium text-zinc-400 transition-[background-color,color,transform] duration-150 hover:bg-zinc-200/60 hover:text-zinc-900 active:scale-[0.96]"
                         >
                           <BookmarkIcon className="size-3.5" />
                           Save
                         </button>
                       </div>
                     )}
-                    {resolvedModelLabel && textParts.length > 0 && (
-                      <p className="mt-1.5 text-xs text-zinc-400">
-                        Answered by {resolvedModelLabel}
-                      </p>
+                    {message.role === "assistant" && messageText && !isMessageStreaming && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => { void copyMessageText({ text: messageText }); }}
+                          className="flex size-7 cursor-pointer items-center justify-center rounded-md text-zinc-400 opacity-100 transition-[background-color,color,opacity] duration-150 hover:bg-zinc-200/60 hover:text-zinc-900 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+                          aria-label="Copy response"
+                          title="Copy response"
+                        >
+                          <CopyIcon className="size-3.5" />
+                        </button>
+                        {resolvedModelLabel && (
+                          <p className="text-xs leading-5 text-zinc-400 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100">
+                            Answered by {resolvedModelLabel}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </Message>
               );
             })}
-            {(isLoadingThread || status === "submitted") && (
-              <Message from="assistant" className="max-w-full">
-                <div className="flex items-center gap-1.5 py-2">
-                  <span className="size-2 rounded-full bg-zinc-300 animate-bounce [animation-delay:-0.32s]" />
-                  <span className="size-2 rounded-full bg-zinc-300 animate-bounce [animation-delay:-0.16s]" />
-                  <span className="size-2 rounded-full bg-zinc-300 animate-bounce" />
+            {showOptimisticPrompt && optimisticPrompt && (
+              <Message from="user" className="animate-message-in">
+                <div className="w-full min-w-full">
+                  <MessageContent>
+                    <MessageResponse>{optimisticPrompt.text}</MessageResponse>
+                  </MessageContent>
                 </div>
+              </Message>
+            )}
+            {showThreadSkeleton && (
+              <div className="w-full space-y-6 py-2" aria-hidden="true">
+                <div className="ml-auto h-10 w-2/5 animate-pulse rounded-[1.35rem] bg-zinc-200/60" />
+                <div className="space-y-2.5">
+                  <div className="h-4 w-11/12 animate-pulse rounded-md bg-zinc-200/60" />
+                  <div className="h-4 w-full animate-pulse rounded-md bg-zinc-200/60" />
+                  <div className="h-4 w-3/5 animate-pulse rounded-md bg-zinc-200/60" />
+                </div>
+              </div>
+            )}
+            {showTrailingThinking && (
+              <Message from="assistant" className="max-w-full animate-message-in">
+                <span className="text-shimmer inline-block w-fit py-1 text-sm font-medium leading-5">
+                  Thinking
+                </span>
               </Message>
             )}
             <div ref={conversationBottomRef} aria-hidden="true" className="h-0 w-full shrink-0" />
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
-        <div className={`z-10 grid min-w-0 shrink-0 bg-white/95 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none ${isEmptyThread ? "sticky bottom-0 mt-auto gap-3 pt-6 sm:pt-6 lg:mt-0 lg:gap-5 lg:pt-8" : "sticky bottom-0 gap-3 pt-3"}`}>
+        <div className={`z-10 grid min-w-0 shrink-0 bg-zinc-50/95 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none ${isEmptyThread ? "sticky bottom-0 mt-auto gap-3 pt-6 sm:pt-6 lg:mt-0 lg:gap-5 lg:pt-8" : "sticky bottom-0 gap-3 pt-3"}`}>
           {isEmptyThread && (
             <ChatSuggestions
               className={`${contentColumnClass} order-1 lg:order-2`}
@@ -659,15 +833,15 @@ function ChatInterface({
           <div className={`${contentColumnClass} min-w-0 ${isEmptyThread ? "order-2 px-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:order-1 lg:pb-0" : "px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pb-3"}`}>
             <PromptInput
               onSubmit={handleSubmit}
-              className={
-                isEmptyThread
-                  ? "min-w-0 **:data-[slot=input-group]:min-w-0 **:data-[slot=input-group]:rounded-[1.35rem] **:data-[slot=input-group]:border-zinc-200 **:data-[slot=input-group]:bg-white **:data-[slot=input-group]:shadow-[0_22px_70px_rgba(24,24,27,0.13),0_6px_18px_rgba(24,24,27,0.08),0_0_0_1px_rgba(24,24,27,0.04)]"
-                  : "min-w-0 **:data-[slot=input-group]:min-w-0 **:data-[slot=input-group]:rounded-2xl **:data-[slot=input-group]:border-zinc-200 **:data-[slot=input-group]:bg-white **:data-[slot=input-group]:shadow-[0_0_0_1px_rgba(24,24,27,0.02),0_1px_2px_rgba(24,24,27,0.04)]"
-              }
+              className="group/prompt min-w-0 **:data-[slot=input-group]:min-w-0 **:data-[slot=input-group]:rounded-[1.35rem] **:data-[slot=input-group]:border-zinc-200 **:data-[slot=input-group]:bg-white **:data-[slot=input-group]:border **:data-[slot=input-group]:shadow-[0_1px_2px_rgba(24,24,27,0.03),0_8px_24px_-16px_rgba(24,24,27,0.14)] border-zinc-200"
             >
               <PromptInputBody>
                 <PromptInputTextarea
-                  className={isEmptyThread ? "min-h-24 min-w-0 px-4 py-4 text-[15px] leading-6 placeholder:text-zinc-400 lg:min-h-28 lg:px-5 lg:py-5 lg:text-base" : "min-w-0"}
+                  className={
+                    isEmptyThread
+                      ? "min-h-24 min-w-0 px-4 py-4 text-base leading-6 placeholder:text-zinc-400 lg:min-h-28 lg:px-5 lg:py-5 lg:text-base"
+                      : "min-h-10 min-w-0 px-4 py-3 text-base leading-6 placeholder:text-zinc-400"
+                  }
                   placeholder="Ask about customer feedback..."
                 />
               </PromptInputBody>
@@ -679,7 +853,7 @@ function ChatInterface({
                 >
                   <SelectTrigger
                     aria-label="Chat model"
-                    className={`${isEmptyThread ? "h-8 w-[142px]" : "h-7 w-[132px]"} shrink-0 rounded-lg border-0 bg-zinc-100 px-2.5 text-xs font-medium text-zinc-500 shadow-none transition-[background-color,color,transform] hover:bg-zinc-200/70 hover:text-zinc-900 focus:ring-1 focus:ring-zinc-300 focus:ring-offset-0 data-[state=open]:bg-zinc-200/70 data-[state=open]:text-zinc-900 [&>span]:block [&>span]:truncate [&>svg]:size-3.5`}
+                    className={`${isEmptyThread ? "h-9" : "h-8"} w-auto max-w-[160px] shrink-0 gap-1 rounded-lg border-0 bg-transparent px-2.5 text-xs font-medium text-zinc-500 shadow-none outline-none transition-[background-color,color] duration-150 hover:bg-zinc-100 hover:text-zinc-900 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:outline-none data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-900 [&>span]:block [&>span]:truncate [&>svg]:size-3.5`}
                   >
                     <SelectValue>
                       {selectedModel ? selectedModel.label : "Model"}
@@ -687,13 +861,13 @@ function ChatInterface({
                   </SelectTrigger>
                   <SelectContent
                     align="start"
-                    className="w-[180px] rounded-xl border-zinc-200 bg-white p-1.5 shadow-[0_18px_45px_rgba(24,24,27,0.14)]"
+                    className="w-[180px] rounded-xl border-zinc-200 bg-white p-1.5 shadow-overlay"
                   >
                     {CHAT_MODEL_OPTIONS.map((model) => (
                       <SelectItem
                         key={model.id}
                         value={model.id}
-                        className="rounded-lg py-2 pl-8 pr-2 text-xs text-zinc-700 focus:bg-zinc-100 focus:text-zinc-950 data-[state=checked]:bg-zinc-100 data-[state=checked]:text-zinc-950 [&_svg]:text-zinc-600"
+                        className="cursor-pointer rounded-lg py-2 pl-2.5 pr-8 text-xs text-zinc-700 focus:bg-zinc-100 focus:text-zinc-950 data-[state=checked]:text-zinc-950 data-[state=checked]:font-medium [&_svg]:text-zinc-600"
                       >
                         <span className="block truncate">{model.label}</span>
                       </SelectItem>
@@ -718,13 +892,21 @@ function ChatInterface({
                     onStop={stop}
                     status={status}
                     title={isGenerating ? "Stop response" : "Send message"}
-                    className={`shrink-0 rounded-lg transition-[background-color,border-color,box-shadow,transform] focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 active:scale-[0.96] ${
+                    className={`shrink-0 cursor-pointer rounded-full p-0 transition-[background-color,border-color,color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 active:scale-[0.95] ${
+                      isEmptyThread ? "size-9" : "size-8"
+                    } ${
                       isGenerating
-                        ? "size-8 cursor-pointer border border-zinc-900 bg-zinc-900 p-0 text-white shadow-sm hover:bg-zinc-800 [&>svg]:size-3.5"
-                        : `${isEmptyThread ? "size-10 bg-zinc-950 text-white shadow-[0_8px_18px_rgba(24,24,27,0.18)] hover:bg-zinc-800 hover:shadow-[0_10px_24px_rgba(24,24,27,0.22)] [&>svg]:size-[18px]" : "size-8 border border-zinc-300 bg-white text-zinc-950 shadow-[0_1px_2px_rgba(24,24,27,0.08),0_1px_0_rgba(255,255,255,0.9)_inset] hover:border-zinc-400 hover:bg-zinc-50 hover:shadow-[0_2px_6px_rgba(24,24,27,0.12)] [&>svg]:size-4"} cursor-pointer p-0`
+                        ? "border border-zinc-950 bg-zinc-950 text-white hover:bg-zinc-800"
+                        : "border border-zinc-950 bg-zinc-950 text-white hover:bg-zinc-800 group-has-[textarea:placeholder-shown]/prompt:border-zinc-300 group-has-[textarea:placeholder-shown]/prompt:bg-white group-has-[textarea:placeholder-shown]/prompt:text-zinc-500 group-has-[textarea:placeholder-shown]/prompt:hover:border-zinc-400 group-has-[textarea:placeholder-shown]/prompt:hover:bg-zinc-50 group-has-[textarea:placeholder-shown]/prompt:hover:text-zinc-800"
                     }`}
                   >
-                    {isGenerating ? <SquareIcon className="size-3.5 fill-current" /> : <ArrowUpIcon className="size-4" />}
+                    {status === "submitted" ? (
+                      <Spinner className="size-4" />
+                    ) : isGenerating ? (
+                      <SquareIcon className="size-3 fill-current" />
+                    ) : (
+                      <ArrowUpIcon className="size-4" />
+                    )}
                   </PromptInputSubmit>
                 </div>
               </PromptInputFooter>
@@ -837,13 +1019,9 @@ function SavedQueriesSidebar({
   const [showAllThreads, setShowAllThreads] = useState(false);
   const displayedThreads = useMemo(() => {
     if (!recentThreads) return undefined;
-    return showAllThreads ? recentThreads : recentThreads.slice(0, 5);
+    return showAllThreads ? recentThreads : recentThreads.slice(0, 8);
   }, [recentThreads, showAllThreads]);
-  const recentThreadGroups = useMemo(
-    () => (displayedThreads ? groupRecentThreads({ threads: displayedThreads }) : []),
-    [displayedThreads]
-  );
-  const hasMoreThreads = (recentThreads?.length ?? 0) > 5;
+  const hasMoreThreads = (recentThreads?.length ?? 0) > 8;
   const beginRename = useCallback(({ savedQuery }: { savedQuery: SavedQuery }) => {
     setRenamingSavedQuery(savedQuery);
     setRenameDraft(savedQuery.title);
@@ -882,15 +1060,15 @@ function SavedQueriesSidebar({
         className={
           isMobile
             ? "flex min-h-0 flex-1 shrink-0 flex-col bg-zinc-50"
-            : "hidden min-h-0 flex-col border-r border-zinc-200 bg-zinc-50 lg:col-start-1 lg:flex lg:h-full"
+            : "hidden min-h-0 flex-col border-r border-zinc-200/80 bg-zinc-50 lg:col-start-1 lg:flex lg:h-full"
         }
       >
-        <div className="flex shrink-0 items-center gap-2 px-4 py-4">
+        <div className="flex shrink-0 items-center gap-1.5 px-3 pb-2 pt-3">
           {isMobile && (
             <button
               type="button"
               onClick={onClose}
-              className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 transition-[background-color,color,transform] hover:bg-zinc-100 hover:text-zinc-950 active:scale-[0.96]"
+              className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 transition-[background-color,color,transform] hover:bg-zinc-100 hover:text-zinc-950 active:scale-[0.96]"
               aria-label="Close chat history"
             >
               <PanelLeftCloseIcon className="size-4" />
@@ -899,150 +1077,120 @@ function SavedQueriesSidebar({
           <button
             type="button"
             onClick={onNewChat}
-            className="flex min-h-10 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-700 shadow-[0_0_0_1px_rgba(24,24,27,0.08),0_1px_2px_rgba(24,24,27,0.04)] transition-[background-color,color,box-shadow,transform] hover:bg-zinc-50 hover:text-zinc-950 hover:shadow-[0_0_0_1px_rgba(24,24,27,0.11),0_2px_8px_rgba(24,24,27,0.06)] active:scale-[0.96]"
+            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-800 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-[background-color,border-color,color,transform] duration-150 hover:border-zinc-300 hover:text-zinc-950 active:scale-[0.98]"
           >
-            <PlusIcon className="size-4" />
+            <PlusIcon className="size-4 text-zinc-500" />
             New chat
           </button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-5">
-          <SidebarSection
-            count={recentThreads?.length}
-            title="Recent chats"
-          >
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-3 pb-4 pt-2">
+          <SidebarSection title="Recents">
             {recentThreads === undefined ? (
               <SidebarSkeleton />
             ) : recentThreads.length === 0 ? (
-              <SidebarEmpty label="No recent chats yet." />
+              <SidebarEmpty label="No chats yet" />
             ) : (
-              <div className="space-y-3">
-                {recentThreadGroups.map((group) => (
-                  <div key={group.key} className="space-y-1">
-                    <div className="px-2 text-[11px] font-medium leading-5 text-zinc-400">
-                      {group.label}
-                    </div>
-                    {group.threads.map((thread) => (
-                      <div
-                        key={thread.threadId}
-                        className={`group flex items-center gap-1 rounded-lg transition-[background-color,box-shadow] ${
-                          thread.threadId === activeThreadId
-                            ? "bg-white shadow-[0_0_0_1px_rgba(24,24,27,0.08),0_1px_4px_rgba(24,24,27,0.06)]"
-                            : "hover:bg-zinc-100/70"
+              <div className="space-y-px">
+                {displayedThreads?.map((thread) => {
+                  const isActive = thread.threadId === activeThreadId;
+                  return (
+                    <div key={thread.threadId} className="group relative">
+                      <Link
+                        href={`/chat/${thread.threadId}`}
+                        onClick={onThreadSelect}
+                        className={`flex h-9 items-center rounded-lg pl-2.5 pr-8 transition-[background-color,color] duration-150 ${
+                          isActive
+                            ? "bg-zinc-200/60 text-zinc-950"
+                            : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
                         }`}
                       >
-                        <Link
-                          href={`/chat/${thread.threadId}`}
-                          onClick={onThreadSelect}
-                          className="block min-h-10 min-w-0 flex-1 px-2.5 py-2 active:scale-[0.99] transition-transform"
-                        >
-                          <span className={`line-clamp-2 max-w-full text-[13px] font-medium leading-5 ${thread.threadId === activeThreadId ? "text-zinc-950" : "text-zinc-700"}`}>
-                            {thread.title}
-                          </span>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => { void onArchiveThread({ thread }); }}
-                          className="mr-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-400 opacity-100 transition-[background-color,color,transform] hover:bg-white hover:text-red-600 active:scale-[0.96] md:opacity-0 md:group-hover:opacity-100"
-                          aria-label="Delete chat"
-                        >
-                          <Trash2Icon className="size-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                        <span className={`min-w-0 truncate text-sm leading-5 ${isActive ? "font-medium" : ""}`}>
+                          {thread.title}
+                        </span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => { void onArchiveThread({ thread }); }}
+                        className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-zinc-400 opacity-100 transition-[background-color,color,opacity] duration-150 hover:bg-zinc-200/70 hover:text-red-600 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                        aria-label={`Delete chat: ${thread.title}`}
+                      >
+                        <Trash2Icon className="size-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
                 {hasMoreThreads && (
                   <button
                     type="button"
                     onClick={() => setShowAllThreads((prev) => !prev)}
-                    className="mt-1 w-full cursor-pointer rounded-lg px-2.5 py-2 text-left text-[12px] font-medium text-zinc-400 transition-[background-color,color] hover:bg-zinc-100/70 hover:text-zinc-600"
+                    className="flex h-8 w-full cursor-pointer items-center rounded-lg px-2.5 text-left text-xs font-medium text-zinc-400 transition-[background-color,color] duration-150 hover:bg-zinc-100 hover:text-zinc-700"
                   >
-                    {showAllThreads ? "Show less" : "Show older chats"}
+                    {showAllThreads ? "Show less" : "Show all"}
                   </button>
                 )}
               </div>
             )}
           </SidebarSection>
 
-          <SidebarSection
-            count={savedQueries?.length}
-            title="Saved queries"
-          >
+          <SidebarSection title="Saved">
             {savedQueries === undefined ? (
               <SidebarSkeleton />
             ) : savedQueries.length === 0 ? (
-              <SidebarEmpty label="No saved queries yet." />
+              <SidebarEmpty label="No saved queries yet" />
             ) : (
-              <div className="space-y-1">
-                {savedQueries.map((savedQuery) => {
-                  const showSubtitle = !sameDisplayText({
-                    first: savedQuery.title,
-                    second: savedQuery.query,
-                  });
-
-                  return (
-                    <div
-                      key={savedQuery._id}
-                      className="group flex items-center gap-1 rounded-lg transition-[background-color] hover:bg-zinc-100/70"
+              <div className="space-y-px">
+                {savedQueries.map((savedQuery) => (
+                  <div key={savedQuery._id} className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => onStage({ savedQuery })}
+                      className="flex h-9 w-full cursor-pointer items-center rounded-lg pl-2.5 pr-8 text-left text-zinc-600 transition-[background-color,color] duration-150 hover:bg-zinc-100 hover:text-zinc-900"
                     >
-                      <button
-                        type="button"
-                        onClick={() => onStage({ savedQuery })}
-                        className="block min-h-10 min-w-0 flex-1 cursor-pointer rounded-lg px-2.5 py-2 text-left transition-[color,transform] active:scale-[0.99]"
-                      >
-                        <span className="block min-w-0">
-                          <span className="line-clamp-2 max-w-full text-[13px] font-medium leading-5 text-zinc-800">
-                            {savedQuery.title}
-                          </span>
-                          {showSubtitle && (
-                            <span className="mt-0.5 line-clamp-2 max-w-full text-[11px] leading-4 text-zinc-400/90">
-                              {savedQuery.query}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="mr-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-zinc-400 opacity-100 transition-[background-color,color,transform] hover:bg-white hover:text-zinc-900 active:scale-[0.96] md:opacity-0 md:group-hover:opacity-100"
-                            aria-label="Saved query actions"
-                          >
-                            <MoreHorizontalIcon className="size-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-36 rounded-xl border-zinc-200 bg-white p-1.5 shadow-[0_18px_45px_rgba(24,24,27,0.14)]"
+                      <span className="min-w-0 truncate text-sm leading-5">
+                        {savedQuery.title}
+                      </span>
+                    </button>
+                    <DropdownMenu modal={false}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-zinc-400 opacity-100 transition-[background-color,color,opacity] duration-150 hover:bg-zinc-200/70 hover:text-zinc-900 focus-visible:opacity-100 data-[state=open]:bg-zinc-200/70 data-[state=open]:opacity-100 data-[state=open]:text-zinc-900 md:opacity-0 md:group-hover:opacity-100"
+                          aria-label={`Saved query actions: ${savedQuery.title}`}
                         >
-                          <DropdownMenuItem
-                            onClick={() => beginRename({ savedQuery })}
-                            className="cursor-pointer rounded-lg text-xs"
-                          >
-                            <PencilIcon className="size-3.5" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              void copySavedQuery({ savedQuery });
-                            }}
-                            className="cursor-pointer rounded-lg text-xs"
-                          >
-                            <CopyIcon className="size-3.5" />
-                            Copy
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onRemove({ savedQuery })}
-                            className="cursor-pointer rounded-lg text-xs text-red-600 focus:bg-red-50 focus:text-red-700"
-                          >
-                            <Trash2Icon className="size-3.5" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  );
-                })}
+                          <MoreHorizontalIcon className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-36 rounded-xl border-zinc-200 bg-white p-1.5 shadow-overlay"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => beginRename({ savedQuery })}
+                          className="cursor-pointer rounded-lg text-xs"
+                        >
+                          <PencilIcon className="size-3.5" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            void copySavedQuery({ savedQuery });
+                          }}
+                          className="cursor-pointer rounded-lg text-xs"
+                        >
+                          <CopyIcon className="size-3.5" />
+                          Copy
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onRemove({ savedQuery })}
+                          className="cursor-pointer rounded-lg text-xs text-red-600 focus:bg-red-50 focus:text-red-700"
+                        >
+                          <Trash2Icon className="size-3.5" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
               </div>
             )}
           </SidebarSection>
@@ -1055,7 +1203,7 @@ function SavedQueriesSidebar({
           if (!open) cancelRename();
         }}
       >
-        <DialogContent className="max-w-md rounded-xl border-zinc-200 bg-white p-5 shadow-[0_24px_80px_rgba(24,24,27,0.22)]">
+        <DialogContent className="max-w-md rounded-xl border-zinc-200 bg-white p-5">
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -1101,112 +1249,36 @@ function SavedQueriesSidebar({
 
 function SidebarSection({
   children,
-  count,
   title,
 }: {
   children: ReactNode;
-  count?: number;
   title: string;
 }) {
   return (
     <section>
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="text-[11px] font-semibold uppercase text-zinc-500">
-          {title}
-        </div>
-        {count !== undefined && count > 0 && (
-          <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
-            {count}
-          </span>
-        )}
+      <div className="px-2.5 pb-1.5 text-xs font-medium text-zinc-400">
+        {title}
       </div>
-      <div className="mt-2 min-h-0 pr-1">{children}</div>
+      <div className="min-h-0">{children}</div>
     </section>
   );
 }
 
 function SidebarSkeleton() {
   return (
-    <div className="space-y-2 py-1">
-      <div className="h-10 rounded-lg bg-zinc-200/60" />
-      <div className="h-10 rounded-lg bg-zinc-200/40" />
+    <div className="space-y-1 py-0.5">
+      <div className="h-9 animate-pulse rounded-lg bg-zinc-200/50" />
+      <div className="h-9 animate-pulse rounded-lg bg-zinc-200/30" />
     </div>
   );
 }
 
 function SidebarEmpty({ label }: { label: string }) {
   return (
-    <div className="rounded-lg px-2 py-2 text-xs leading-5 text-zinc-400">
+    <div className="rounded-lg px-2.5 py-1.5 text-xs leading-5 text-zinc-400">
       {label}
     </div>
   );
-}
-
-type RecentThreadGroup = {
-  key: string;
-  label: string;
-  threads: RecentThread[];
-};
-
-function groupRecentThreads({ threads }: { threads: RecentThread[] }): RecentThreadGroup[] {
-  const selectedDayKeys = new Set<string>();
-  const groups = new Map<string, RecentThreadGroup>();
-
-  for (const thread of threads) {
-    const dayKey = getLocalDayKey({ timestamp: thread.createdAt });
-    const groupKey =
-      selectedDayKeys.has(dayKey) || selectedDayKeys.size < 4 ? dayKey : "other";
-
-    if (groupKey === dayKey) {
-      selectedDayKeys.add(dayKey);
-    }
-
-    const existingGroup = groups.get(groupKey);
-    if (existingGroup) {
-      existingGroup.threads.push(thread);
-      continue;
-    }
-
-    groups.set(groupKey, {
-      key: groupKey,
-      label: groupKey === "other" ? "Other" : formatThreadGroupDate({ timestamp: thread.createdAt }),
-      threads: [thread],
-    });
-  }
-
-  return [...groups.values()];
-}
-
-function getLocalDayKey({ timestamp }: { timestamp: number }): string {
-  const date = new Date(timestamp);
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
-function formatThreadGroupDate({ timestamp }: { timestamp: number }): string {
-  const date = new Date(timestamp);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-
-  if (isSameLocalDay({ first: date, second: today })) return "Today";
-  if (isSameLocalDay({ first: date, second: yesterday })) return "Yesterday";
-
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function isSameLocalDay({ first, second }: { first: Date; second: Date }): boolean {
-  return (
-    first.getFullYear() === second.getFullYear() &&
-    first.getMonth() === second.getMonth() &&
-    first.getDate() === second.getDate()
-  );
-}
-
-function sameDisplayText({ first, second }: { first: string; second: string }): boolean {
-  return normalizeDisplayText({ text: first }) === normalizeDisplayText({ text: second });
 }
 
 function normalizeDisplayText({ text }: { text: string }): string {

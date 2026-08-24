@@ -1,11 +1,11 @@
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { requireAdmin, requireAuthenticated } from "../lib/convex/auth";
+import { requireAuthenticated } from "../lib/convex/auth";
 import { getJoinedSlackChannels, getSlackChannelHistory, type SlackChannel } from "../lib/convex/slack";
 import {
   DEFAULT_COMPANY_SEGMENTS,
@@ -491,13 +491,12 @@ export const listCompanies = query({
   },
 });
 
-export const searchCompanyProfiles = query({
+export const searchCompanyProfilesInternal = internalQuery({
   args: {
     search: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<CompanySearchResult[]> => {
-    await requireAdmin({ ctx });
     const search = args.search.trim();
     const limit = args.limit ?? 8;
     if (!search) {
@@ -1017,11 +1016,9 @@ export const getProspectDomains = query({
   },
 });
 
-export const seedDefaultSegments = mutation({
+export const seedDefaultSegmentsInternal = internalMutation({
   args: {},
   handler: async (ctx): Promise<{ inserted: number; updated: number; archived: number }> => {
-    await requireAdmin({ ctx });
-    const identity = await ctx.auth.getUserIdentity();
     const now = Date.now();
     let inserted = 0;
     let updated = 0;
@@ -1032,7 +1029,7 @@ export const seedDefaultSegments = mutation({
           ...seed,
           status: existing.status,
           updatedAt: now,
-          updatedByEmail: identity?.email,
+          updatedByEmail: "system",
         });
         updated++;
       } else {
@@ -1041,8 +1038,8 @@ export const seedDefaultSegments = mutation({
           status: "active",
           createdAt: now,
           updatedAt: now,
-          createdByEmail: identity?.email,
-          updatedByEmail: identity?.email,
+          createdByEmail: "system",
+          updatedByEmail: "system",
         });
         inserted++;
       }
@@ -1054,7 +1051,7 @@ export const seedDefaultSegments = mutation({
         await ctx.db.patch(legacy._id, {
           status: "archived",
           updatedAt: now,
-          updatedByEmail: identity?.email,
+          updatedByEmail: "system",
         });
         archived++;
       }
@@ -1063,14 +1060,14 @@ export const seedDefaultSegments = mutation({
   },
 });
 
-export const addManualProvisionedThroughputProspect = mutation({
+export const addProvisionedThroughputProspectInternal = internalMutation({
   args: {
     companyId: v.optional(v.id("companyProfiles")),
     name: v.string(),
     domain: v.string(),
   },
   handler: async (ctx, args): Promise<{ companyId: Id<"companyProfiles">; membershipCreated: boolean; refreshScheduled: boolean }> => {
-    const adminEmail = await requireAdmin({ ctx });
+    const updatedByEmail = "system";
     const now = Date.now();
     const cleanedName = args.name.trim();
     const domain = normalizeDomain({ value: args.domain });
@@ -1152,7 +1149,7 @@ export const addManualProvisionedThroughputProspect = mutation({
           blockers: [],
           nextSteps: [],
           origin: existingMembership.origin ?? "manual",
-          addedByEmail: existingMembership.addedByEmail ?? adminEmail,
+          addedByEmail: existingMembership.addedByEmail ?? updatedByEmail,
           addedAt: existingMembership.addedAt ?? now,
           updatedAt: now,
         });
@@ -1173,7 +1170,7 @@ export const addManualProvisionedThroughputProspect = mutation({
       nextSteps: [],
       evidenceRefs: [],
       origin: "manual",
-      addedByEmail: adminEmail,
+      addedByEmail: updatedByEmail,
       addedAt: now,
       firstSeenAt: now,
       lastSeenAt: now,
@@ -1184,14 +1181,14 @@ export const addManualProvisionedThroughputProspect = mutation({
   },
 });
 
-export const pinProspectEvidence = mutation({
+export const pinProspectEvidenceInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
     reference: sourceRefValidator,
   },
   handler: async (ctx, args): Promise<{ pinned: boolean }> => {
-    const adminEmail = await requireAdmin({ ctx });
+    const updatedByEmail = "system";
     const [company, membership] = await Promise.all([
       ctx.db.get(args.companyId),
       ctx.db
@@ -1217,7 +1214,7 @@ export const pinProspectEvidence = mutation({
           ...manualEvidenceRefs,
           {
             ...canonical,
-            addedByEmail: adminEmail,
+            addedByEmail: updatedByEmail,
             addedAt: now,
           },
         ];
@@ -1237,7 +1234,7 @@ export const pinProspectEvidence = mutation({
   },
 });
 
-export const unpinProspectEvidence = mutation({
+export const unpinProspectEvidenceInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
@@ -1245,7 +1242,6 @@ export const unpinProspectEvidence = mutation({
     id: v.string(),
   },
   handler: async (ctx, args): Promise<{ unpinned: boolean }> => {
-    await requireAdmin({ ctx });
     const membership = await ctx.db
       .query("companySegmentMemberships")
       .withIndex("by_segment_company", (q) => q.eq("segmentId", args.segmentId).eq("companyId", args.companyId))
@@ -1265,14 +1261,14 @@ export const unpinProspectEvidence = mutation({
   },
 });
 
-export const pinProspectSlackEvidence = mutation({
+export const pinProspectSlackEvidenceInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
     mentionId: v.id("slackCompanyMentions"),
   },
   handler: async (ctx, args): Promise<{ pinned: boolean }> => {
-    const adminEmail = await requireAdmin({ ctx });
+    const updatedByEmail = "system";
     const [company, membership, mention] = await Promise.all([
       ctx.db.get(args.companyId),
       ctx.db
@@ -1303,7 +1299,7 @@ export const pinProspectSlackEvidence = mutation({
         threadTs: mention.threadTs,
         authorName: mention.authorName,
       },
-      addedByEmail: adminEmail,
+      addedByEmail: updatedByEmail,
       addedAt: now,
     };
 
@@ -1337,14 +1333,13 @@ export const pinProspectSlackEvidence = mutation({
   },
 });
 
-export const unpinProspectSlackEvidence = mutation({
+export const unpinProspectSlackEvidenceInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
     mentionId: v.id("slackCompanyMentions"),
   },
   handler: async (ctx, args): Promise<{ unpinned: boolean }> => {
-    await requireAdmin({ ctx });
     const membership = await ctx.db
       .query("companySegmentMemberships")
       .withIndex("by_segment_company", (q) => q.eq("segmentId", args.segmentId).eq("companyId", args.companyId))
@@ -1366,7 +1361,7 @@ export const unpinProspectSlackEvidence = mutation({
   },
 });
 
-export const setProspectOutcome = mutation({
+export const setProspectOutcomeInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
@@ -1376,7 +1371,7 @@ export const setProspectOutcome = mutation({
     competitorsConsidered: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args): Promise<{ updated: boolean }> => {
-    const adminEmail = await requireAdmin({ ctx });
+    const updatedByEmail = "system";
     const membership = await ctx.db
       .query("companySegmentMemberships")
       .withIndex("by_segment_company", (q) => q.eq("segmentId", args.segmentId).eq("companyId", args.companyId))
@@ -1390,7 +1385,7 @@ export const setProspectOutcome = mutation({
       lostReason: args.outcome === "lost" ? (args.lostReason?.trim() || undefined) : undefined,
       competitorsConsidered: competitorsConsidered.length > 0 ? competitorsConsidered : undefined,
       outcomeOrigin: "manual",
-      outcomeSetByEmail: adminEmail,
+      outcomeSetByEmail: updatedByEmail,
       outcomeSetAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -1398,13 +1393,12 @@ export const setProspectOutcome = mutation({
   },
 });
 
-export const clearProspectOutcomeOverride = mutation({
+export const clearProspectOutcomeOverrideInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
   },
   handler: async (ctx, args): Promise<{ cleared: boolean }> => {
-    await requireAdmin({ ctx });
     const membership = await ctx.db
       .query("companySegmentMemberships")
       .withIndex("by_segment_company", (q) => q.eq("segmentId", args.segmentId).eq("companyId", args.companyId))
@@ -1420,12 +1414,12 @@ export const clearProspectOutcomeOverride = mutation({
   },
 });
 
-export const removeProvisionedThroughputProspect = mutation({
+export const removeProvisionedThroughputProspectInternal = internalMutation({
   args: {
     companyId: v.id("companyProfiles"),
   },
   handler: async (ctx, args): Promise<{ removed: boolean }> => {
-    const adminEmail = await requireAdmin({ ctx });
+    const updatedByEmail = "system";
     const segment = await getSegmentBySlug({
       ctx,
       slug: PROVISIONED_THROUGHPUT_SEGMENT_SLUG,
@@ -1447,7 +1441,7 @@ export const removeProvisionedThroughputProspect = mutation({
         segmentId: segment._id,
         companyId: args.companyId,
         domain: company.domain,
-        dismissedByEmail: adminEmail,
+        dismissedByEmail: updatedByEmail,
         dismissedAt: Date.now(),
         reason: "Removed from prospects page",
       });
@@ -1458,21 +1452,19 @@ export const removeProvisionedThroughputProspect = mutation({
   },
 });
 
-export const upsertSegment = mutation({
+export const upsertSegmentInternal = internalMutation({
   args: {
     segmentId: v.optional(v.id("companySegments")),
     ...segmentInputValidator,
   },
   handler: async (ctx, args): Promise<Id<"companySegments">> => {
-    await requireAdmin({ ctx });
-    const identity = await ctx.auth.getUserIdentity();
     const now = Date.now();
     const input = parseSegmentInput({ input: args });
     if (args.segmentId) {
       await ctx.db.patch(args.segmentId, {
         ...input,
         updatedAt: now,
-        updatedByEmail: identity?.email,
+        updatedByEmail: "system",
       });
       return args.segmentId;
     }
@@ -1490,8 +1482,8 @@ export const upsertSegment = mutation({
       ...input,
       createdAt: now,
       updatedAt: now,
-      createdByEmail: identity?.email,
-      updatedByEmail: identity?.email,
+      createdByEmail: "system",
+      updatedByEmail: "system",
     });
   },
 });
@@ -2370,20 +2362,18 @@ async function refreshSegments({
   };
 }
 
-export const refreshSegment = action({
+export const refreshSegment = internalAction({
   args: {
     segmentId: v.optional(v.id("companySegments")),
   },
   handler: async (ctx, args): Promise<{ segments: number; newCompanies: number; updatedCompanies: number; evidenceCount: number }> => {
-    await requireAdmin({ ctx });
     return await refreshSegments({ ctx, segmentId: args.segmentId });
   },
 });
 
-export const refreshDailySegments = action({
+export const refreshDailySegments = internalAction({
   args: {},
   handler: async (ctx): Promise<{ segments: number; newCompanies: number; updatedCompanies: number; evidenceCount: number }> => {
-    await requireAdmin({ ctx });
     return await refreshSegments({ ctx, cadence: "daily" });
   },
 });
@@ -2407,13 +2397,12 @@ export const refreshSegmentInternal = internalAction({
   },
 });
 
-export const refreshSingleProspect = action({
+export const refreshSingleProspect = internalAction({
   args: {
     companyId: v.id("companyProfiles"),
     segmentId: v.id("companySegments"),
   },
   handler: async (ctx, args): Promise<{ accepted: boolean; fitScore: number; stage: string }> => {
-    await requireAdmin({ ctx });
     const [segment] = await ctx.runQuery(internal.prospects.getSegmentsForRefresh, { segmentId: args.segmentId });
     if (!segment) throw new Error("Segment not found.");
     const membership = await ctx.runQuery(internal.prospects.getMembershipForCompany, {
@@ -2432,6 +2421,6 @@ export const getSourceDetail = action({
   },
   handler: async (ctx, args): Promise<SourceDetailResult | null> => {
     await requireAuthenticated({ ctx });
-    return await ctx.runQuery(internal.dailyInsights.getSourceDetailData, args);
+    return await ctx.runQuery(internal.sourceDetails.getSourceDetailData, args);
   },
 });

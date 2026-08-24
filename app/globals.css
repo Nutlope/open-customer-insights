@@ -49,6 +49,66 @@
     color: inherit;
     text-decoration: none;
   }
+  /* Button labels are controls, not copy: double-clicking them should never
+     start a text selection. */
+  button,
+  [role="button"],
+  kbd {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Chat motion. Streaming and thinking-state animations run in CSS so they
+   remain smooth while token updates are rendered. */
+@keyframes text-shimmer {
+  from { background-position: 120% center; }
+  to { background-position: -120% center; }
+}
+.text-shimmer {
+  background-image: linear-gradient(90deg, #71717a 0%, #18181b 45%, #71717a 90%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-shimmer 1.8s linear infinite;
+}
+
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-message-in {
+  animation: message-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-step-in {
+  animation: step-in 0.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-shimmer {
+    animation: none;
+    background: none;
+    color: #52525b;
+  }
+  .animate-message-in,
+  .animate-step-in {
+    animation: none;
+  }
+}
+
+/* Keep the chat composer edge neutral and strengthen it on focus. */
+[data-slot="input-group"] {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  --tw-ring-color: transparent;
+}
+[data-slot="input-group"]:focus-within {
+  border-color: #d4d4d8;
 }
 
 /* Slack message markdown rendering */

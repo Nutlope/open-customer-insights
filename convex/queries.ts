@@ -10,16 +10,13 @@ export const getStats = query({
     const issuesCount = await issuesAggregate.count(ctx);
     const chunksTotal = await chunksAggregate.count(ctx);
     const chunksEmbedded = await chunksAggregate.sum(ctx);
-    const dailyInsightsCount = (await ctx.db.query("dailyInsights").collect()).length;
-    const [recentCalls, recentTickets, recentDailyInsights] = await Promise.all([
+    const [recentCalls, recentTickets] = await Promise.all([
       ctx.db.query("calls").withIndex("by_started").order("desc").take(5),
       ctx.db.query("pylonIssues").withIndex("by_created").order("desc").take(5),
-      ctx.db.query("dailyInsights").withIndex("by_generated").order("desc").take(5),
     ]);
     return {
       callsCount,
       issuesCount,
-      dailyInsightsCount,
       chunksTotal,
       chunksEmbedded,
       recentCalls: recentCalls.map((call) => ({
@@ -29,10 +26,6 @@ export const getStats = query({
       recentTickets: recentTickets.map((ticket) => ({
         title: ticket.title,
         date: ticket.createdAt,
-      })),
-      recentDailyInsights: recentDailyInsights.map((insight) => ({
-        title: insight.title,
-        date: insight.periodStart,
       })),
     };
   },
@@ -45,7 +38,6 @@ export const getStatsInternal = internalQuery({
     const issuesCount = await issuesAggregate.count(ctx);
     const chunksTotal = await chunksAggregate.count(ctx);
     const chunksEmbedded = await chunksAggregate.sum(ctx);
-    const dailyInsightsCount = (await ctx.db.query("dailyInsights").collect()).length;
-    return { callsCount, issuesCount, dailyInsightsCount, chunksTotal, chunksEmbedded };
+    return { callsCount, issuesCount, chunksTotal, chunksEmbedded };
   },
 });

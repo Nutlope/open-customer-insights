@@ -12,10 +12,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
@@ -28,7 +24,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
+export { MessageResponse } from "./lazy-message-response";
+export type { MessageResponseProps } from "./lazy-message-response";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -56,11 +53,11 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
+      "is-user:dark flex min-w-0 max-w-full flex-col gap-2 overflow-hidden text-base",
       "group-[.is-assistant]:w-full",
-      "group-[.is-user]:ml-auto group-[.is-user]:w-fit group-[.is-user]:max-w-[82%] group-[.is-user]:rounded-[1.35rem] group-[.is-user]:bg-zinc-100 group-[.is-user]:px-5 group-[.is-user]:py-3 group-[.is-user]:text-left group-[.is-user]:text-zinc-950",
+      "group-[.is-user]:ml-auto group-[.is-user]:w-fit group-[.is-user]:max-w-[82%] group-[.is-user]:rounded-[1.35rem] group-[.is-user]:bg-zinc-200/60 group-[.is-user]:px-4 group-[.is-user]:py-2.5 group-[.is-user]:text-left group-[.is-user]:text-zinc-950",
       "group-[.is-user]:[&_p]:my-0",
-      "group-[.is-assistant]:text-foreground",
+      "group-[.is-assistant]:text-zinc-950",
       className
     )}
     {...props}
@@ -322,47 +319,6 @@ export const MessageBranchPage = ({
     </ButtonGroupText>
   );
 };
-
-export type MessageResponseProps = ComponentProps<typeof Streamdown>;
-
-const streamdownPlugins = { cjk, code, math, mermaid };
-const inlineMarkdownControls: NonNullable<MessageResponseProps["controls"]> = {
-  table: { fullscreen: false },
-  mermaid: { fullscreen: false },
-};
-
-export const MessageResponse = memo(
-  ({
-    className,
-    controls = inlineMarkdownControls,
-    ...props
-  }: MessageResponseProps) => (
-    <Streamdown
-      className={cn(
-        "size-full space-y-3 leading-6",
-        "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-        "[&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-semibold",
-        "[&_h1]:mt-5 [&_h2]:mt-5 [&_h3]:mt-4 [&_h1]:mb-2 [&_h2]:mb-2 [&_h3]:mb-2",
-        "[&_p]:my-2",
-        "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5",
-        "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5",
-        "[&_li]:pl-1 [&_li>p]:my-1",
-        "[&_blockquote]:border-l-2 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_blockquote]:text-zinc-600",
-        "[&_code]:rounded [&_code]:bg-zinc-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.9em]",
-        "[&_pre]:my-3 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-zinc-950 [&_pre]:p-3 [&_pre]:text-zinc-50 [&_pre_code]:bg-transparent [&_pre_code]:p-0",
-        className
-      )}
-      controls={controls}
-      plugins={streamdownPlugins}
-      {...props}
-    />
-  ),
-  (prevProps, nextProps) =>
-    prevProps.children === nextProps.children &&
-    nextProps.isAnimating === prevProps.isAnimating
-);
-
-MessageResponse.displayName = "MessageResponse";
 
 export type MessageToolbarProps = ComponentProps<"div">;
 

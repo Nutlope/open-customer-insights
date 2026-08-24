@@ -14,12 +14,6 @@ const featureUpdates = [
     title: "Slack search is available",
     description: "Ask across joined Slack channels and threads for live internal context about companies and customers.",
   },
-  {
-    id: "daily-insights-chat",
-    source: "daily",
-    title: "Daily insights are searchable in chat",
-    description: "Ask for recent daily reports, customer signals, source-backed learnings, and insight status by date or company.",
-  },
 ] as const satisfies ReadonlyArray<{
   id: string;
   source: SourceVisualKey;

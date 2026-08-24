@@ -2,7 +2,7 @@
 // for the manual-review queue (convex/salesWins.ts pendingRevenueDeals) when
 // a closed-won deal's company can't be matched against an existing
 // companyProfiles record and the Slack message has no usable domain link.
-// Never applied automatically — an admin confirms or overrides it.
+// Never applied automatically — a maintainer confirms or overrides it.
 import { generateText, Output } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { z } from "zod";

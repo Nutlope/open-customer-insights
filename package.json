@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev --port 3030",
     "convex": "bunx convex dev",
+    "convex:once": "npx convex dev --once",
+    "seed": "npx convex run seed:seedDemoData '{}'",
+    "seed:clear": "npx convex run seed:clearDemoData '{}'",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "build": "next build",

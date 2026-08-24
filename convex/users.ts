@@ -1,10 +1,10 @@
-import { mutation, internalMutation, internalQuery, action, query } from "./_generated/server";
+import { mutation, internalAction, internalMutation, internalQuery, action } from "./_generated/server";
 import { v } from "convex/values";
 import type { ActionCtx } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { rateLimiter } from "./rateLimits";
 import { summarizeUsage } from "../lib/convex/usage";
-import { requireAdmin, requireAuthenticatedClerkId, requireServerSecret } from "../lib/convex/auth";
+import { requireAuthenticatedClerkId, requireServerSecret } from "../lib/convex/auth";
 
 async function checkRateLimit({
   ctx,
@@ -163,10 +163,9 @@ function getPrimaryEmail({
   return primaryEmail?.trim() || emailAddresses?.find((emailAddress) => emailAddress.email_address?.trim())?.email_address?.trim() || undefined;
 }
 
-export const backfillUserIdentityFields = action({
+export const backfillUserIdentityFields = internalAction({
   args: {},
   handler: async (ctx): Promise<{ patched: number; skipped: number; errors: number }> => {
-    await requireAdmin({ ctx });
     const clerkSecretKey = process.env.CLERK_SECRET_KEY;
     if (!clerkSecretKey) throw new Error("CLERK_SECRET_KEY is not set in Convex environment variables");
 
@@ -312,15 +311,13 @@ export const recordUserQueryByClerkId = mutation({
   },
 });
 
-export const getUsageSummary = query({
+export const getUsageSummaryInternal = internalQuery({
   args: {
     userId: v.optional(v.string()),
     weekFilter: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { userId, weekFilter, limit }) => {
-    await requireAdmin({ ctx });
-
     const [users, usage] = await Promise.all([
       ctx.db.query("users").collect(),
       ctx.db.query("apiKeyUsage").order("desc").take(limit ?? 10000),
@@ -335,14 +332,12 @@ export const getUsageSummary = query({
   },
 });
 
-export const getUserQueryHistory = query({
+export const getUserQueryHistoryInternal = internalQuery({
   args: {
     userId: v.id("users"),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { userId, limit }) => {
-    await requireAdmin({ ctx });
-
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 

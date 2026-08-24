@@ -12,14 +12,12 @@ type ChatPathParams = {
 type Stats = {
   callsCount: number;
   issuesCount: number;
-  dailyInsightsCount: number;
   chunksTotal: number;
   chunksEmbedded: number;
   slackChannelsCount?: number;
   companiesCount?: number;
   recentCalls: Array<{ title: string; date: string }>;
   recentTickets: Array<{ title: string; date: string }>;
-  recentDailyInsights: Array<{ title: string; date: string }>;
   recentSlackChannels?: string[];
   recentCompanies?: string[];
 };

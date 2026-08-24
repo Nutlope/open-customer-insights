@@ -7,29 +7,30 @@ import Image from "next/image";
 export default function SignInPrompt() {
   return (
     <motion.div
-      className="flex flex-col items-center gap-5 py-24 text-center"
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, delay: 0.3 }}
-      >
-        <h2 className="text-lg sm:text-xl font-medium font-mono opacity-80">
+      className="flex flex-col items-center gap-4 py-24 text-center"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <h2 className="text-balance text-2xl font-semibold text-zinc-950">
         Search calls, tickets &amp; Slack
       </h2>
-      <p className="text-sm opacity-40 leading-relaxed max-w-sm font-mono">
-        Sign in to get your API key and start querying your customer data from any MCP-compatible agent.
+      <p className="max-w-sm text-pretty text-sm leading-6 text-zinc-500">
+        Sign in to get your API key and start querying customer data from the
+        chat or any MCP-compatible agent.
       </p>
       <SignInButton mode="modal">
-        <button className="px-5 py-2.5 text-sm font-medium rounded-lg bg-black text-white hover:opacity-80 active:scale-[0.98] transition-[opacity,transform] cursor-pointer font-mono">
-          Get Insights →
+        <button className="mt-2 cursor-pointer rounded-lg bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition-[background-color,transform] duration-150 hover:bg-zinc-800 active:scale-[0.98]">
+          Get Insights
         </button>
       </SignInButton>
       <a
         href="https://together.ai"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 opacity-20 hover:opacity-40 transition-opacity mt-8"
+        className="mt-8 flex items-center gap-1.5 opacity-30 transition-opacity hover:opacity-60"
       >
-        <span className="text-[10px] font-mono">powered by</span>
+        <span className="text-2xs text-zinc-500">powered by</span>
         <Image
           src="/together-logo.png"
           alt="Together AI"
