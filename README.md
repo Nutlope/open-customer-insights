@@ -80,7 +80,7 @@ With Convex running:
 bun run seed
 ```
 
-The seed is deterministic and idempotent. It creates five fictional companies plus relevant calls, tickets, searchable chunks, Slack context, timelines, and competitor mentions. It refuses to run over non-demo data unless you explicitly pass `{"force":true}` to the Convex function.
+The seed is deterministic and idempotent. It creates 12 fictional companies, 36 calls, 48 tickets, 84 searchable chunks, 24 Slack mentions, 24 timeline events, and a multi-vendor competitor leaderboard. It refuses to run over non-demo data unless you explicitly pass `{"force":true}` to the Convex function.
 
 Remove only the synthetic rows with:
 

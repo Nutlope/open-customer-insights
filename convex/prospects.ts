@@ -132,7 +132,7 @@ const togetherai = createOpenAICompatible({
 
 const PROSPECT_CLASSIFICATION_MODELS = [
   "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-  "deepseek-ai/DeepSeek-V4-Pro",
+  "deepseek-ai/DeepSeek-V4-Pro-0813",
   "moonshotai/Kimi-K2.6",
 ] as const;
 const PROSPECT_SEARCH_LIMIT_PER_QUERY = 50;

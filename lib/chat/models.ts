@@ -10,8 +10,8 @@ export const CHAT_MODELS = [
     provider: "MiniMax",
   },
   {
-    id: "deepseek-ai/DeepSeek-V4-Pro",
-    label: "DeepSeek V4 Pro",
+    id: "deepseek-ai/DeepSeek-V4-Pro-0813",
+    label: "DeepSeek V4 Pro 0813",
     provider: "DeepSeek",
   },
   {
