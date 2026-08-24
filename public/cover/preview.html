@@ -38,22 +38,22 @@
       }
       .glow {
         position: absolute;
-        right: -40px;
-        top: 55px;
-        width: 680px;
-        height: 520px;
+        right: -160px;
+        top: 14px;
+        width: 850px;
+        height: 600px;
         border-radius: 50%;
         background: radial-gradient(circle, rgba(255,255,255,.92) 0%, rgba(247,240,249,.34) 44%, rgba(255,255,255,0) 74%);
         filter: blur(14px);
       }
       .network {
         position: absolute;
-        right: -42px;
-        top: 92px;
-        width: 700px;
+        right: -500px;
+        top: 20px;
+        width: 1050px;
         opacity: .9;
         filter: saturate(.82) drop-shadow(0 24px 40px rgba(75, 55, 95, .11));
-        mask-image: radial-gradient(ellipse 60% 58% at 51% 49%, #000 54%, rgba(0,0,0,.9) 70%, transparent 100%);
+        mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 100%);
       }
       .copy {
         position: relative;
@@ -64,14 +64,14 @@
       .brand {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
-        font-size: 22px;
+        gap: 14px;
+        font-size: 27px;
         font-weight: 650;
         letter-spacing: -.025em;
       }
       .brand img {
-        width: 42px;
-        height: 42px;
+        width: 50px;
+        height: 50px;
         object-fit: contain;
         filter: drop-shadow(0 8px 14px rgba(94,65,145,.2));
       }
@@ -93,15 +93,15 @@
         margin: 28px 0 0;
         max-width: 500px;
         color: #67616e;
-        font-size: 20px;
-        line-height: 1.48;
+        font-size: 24px;
+        line-height: 1.4;
         letter-spacing: -.018em;
       }
       .signals {
         display: flex;
         align-items: center;
-        gap: 9px;
-        margin-top: 42px;
+        gap: 10px;
+        margin-top: 36px;
       }
       .signal {
         padding: 9px 13px;
@@ -112,18 +112,6 @@
         color: #69616e;
         font-size: 13px;
         font-weight: 600;
-      }
-      .plus { color: #a79ead; font-size: 15px; }
-      .footer {
-        position: absolute;
-        left: 72px;
-        bottom: 40px;
-        color: #9c94a1;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: .14em;
-        text-transform: uppercase;
       }
       @media (min-width: 1800px) and (min-height: 1000px) {
         body { display: block; }
@@ -143,19 +131,16 @@
       <section class="copy">
         <div class="brand">
           <img src="../icon.png" alt="" />
-          <span>Customer Insights</span>
+          <span>Together Customer Insight</span>
         </div>
         <h1>Every customer signal.<span>One clear answer.</span></h1>
         <p class="subtitle">Search calls, tickets, Slack, and company context from one private intelligence layer.</p>
         <div class="signals">
-          <span class="signal">Web chat</span>
-          <span class="plus">+</span>
-          <span class="signal">MCP server</span>
-          <span class="plus">+</span>
+          <span class="signal">Calls &amp; tickets</span>
           <span class="signal">Semantic search</span>
+          <span class="signal">MCP server</span>
         </div>
       </section>
-      <div class="footer">Together AI · Convex · Clerk · Next.js</div>
     </main>
   </body>
 </html>
