@@ -18,7 +18,7 @@ export type SlackMentionCandidate = {
 const MODELS = [
   "moonshotai/Kimi-K2.6",
   "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-  "openai/gpt-oss-20b",
+  "Qwen/Qwen3.5-9B",
 ] as const;
 
 const MAX_MESSAGE_CHARS = 500;
