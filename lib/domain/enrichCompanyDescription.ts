@@ -15,7 +15,7 @@ export function stripDescriptionPreamble({ text }: { text: string }): string {
 
 const ROUTER_URL = "https://whichllm.together.ai/router/fast";
 const MODEL_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const FALLBACK_MODEL = "openai/gpt-oss-20b";
+const FALLBACK_MODEL = "Qwen/Qwen3.5-9B";
 const MAX_CONTENT_CHARS = 4000;
 
 let cachedModel: { id: string; fetchedAt: number } | null = null;

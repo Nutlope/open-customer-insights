@@ -22,7 +22,7 @@ async function getBestModel(): Promise<string> {
   } catch {
     // fall through to fallback
   }
-  return "openai/gpt-oss-20b";
+  return "Qwen/Qwen3.5-9B";
 }
 
 function extractDomain(url: string): string | null {
