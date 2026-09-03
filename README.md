@@ -1,6 +1,6 @@
 ![Customer Insights — Every customer signal, one clear answer](./public/cover/og-cover.png)
 
-# Customer Insights
+# Open Customer Insights
 
 Search calls, support tickets, Slack conversations, and company context from one private intelligence layer.
 
