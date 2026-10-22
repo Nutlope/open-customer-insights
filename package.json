@@ -44,10 +44,10 @@
     "lucide-react": "^1.20.0",
     "mcp-handler": "^1.1.0",
     "motion": "^12.38.0",
-    "nanoid": "^5.1.11",
-    "next": "^16.2.7",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "nanoid": "^5.1.16",
+    "next": "16.3.8",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
     "sonner": "^2.0.7",
     "streamdown": "^2.5.0",
     "use-stick-to-bottom": "^1.1.4",
@@ -69,5 +69,14 @@
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
-  ]
+  ],
+  "overrides": {
+    "proxy-addr": "^2.0.8",
+    "fast-uri": "^3.1.7",
+    "hono": "^4.12.25",
+    "ip-address": "^10.3.1",
+    "postcss": "^8.5.18",
+    "source-map-js": "^1.2.2",
+    "ws": "^8.21.0"
+  }
 }
