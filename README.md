@@ -45,7 +45,7 @@ Each external integration is optional. Jobs without matching credentials skip sa
 - [Bun](https://bun.sh/)
 - A [Convex](https://www.convex.dev/) project
 - A [Clerk](https://clerk.com/) application
-- A [Together AI](https://www.together.ai/) API key for chat and embeddings
+- A [Together AI](https://togetherai.link/?utm_source=open-customer-insights&utm_medium=referral&utm_campaign=example-app) API key for chat and embeddings
 
 ### 1. Install and configure
 

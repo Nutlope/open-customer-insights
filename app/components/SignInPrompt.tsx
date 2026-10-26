@@ -25,7 +25,7 @@ export default function SignInPrompt() {
         </button>
       </SignInButton>
       <a
-        href="https://together.ai"
+        href="https://togetherai.link/?utm_source=open-customer-insights&utm_medium=referral&utm_campaign=example-app"
         target="_blank"
         rel="noopener noreferrer"
         className="mt-8 flex items-center gap-1.5 opacity-30 transition-opacity hover:opacity-60"
